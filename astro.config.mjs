@@ -4,17 +4,20 @@ import svelte from '@astrojs/svelte';
 import tailwindcss from '@tailwindcss/vite';
 import AstroPWA from '@vite-pwa/astro';
 
+/** PWA + Workbox in dev adds many watchers; enable only when testing SW: `PWA_DEV=true npm run dev` */
+const pwaInDev = process.env.PWA_DEV === 'true';
+
 export default defineConfig({
   integrations: [
     svelte(),
     AstroPWA({
       registerType: 'autoUpdate',
       manifest: {
-        name: 'Astro PWA Starter',
-        short_name: 'AstroPWA',
-        description: 'Astro + Svelte + Tailwind + DaisyUI PWA',
-        theme_color: '#ffffff',
-        background_color: '#ffffff',
+        name: 'Mangaga 漫画拼贴',
+        short_name: 'Mangaga',
+        description: '多图网格拼贴为一张大图，漫画拼接与导出',
+        theme_color: '#e11d48',
+        background_color: '#fafaf9',
         display: 'standalone',
         icons: [
           {
@@ -30,16 +33,30 @@ export default defineConfig({
         ],
       },
       workbox: {
-        navigateFallback: '/404',
+        navigateFallback: '/',
         globPatterns: ['**/*.{css,js,html,svg,png,ico,txt}'],
       },
       devOptions: {
-        enabled: true,
+        enabled: pwaInDev,
         navigateFallbackAllowlist: [/^\/$/],
       },
     }),
   ],
   vite: {
     plugins: [tailwindcss()],
+    server: {
+      watch: {
+        usePolling: process.env.VITE_USE_POLLING === 'true',
+        ignored: [
+          '**/node_modules/**',
+          '**/.git/**',
+          '**/dist/**',
+          '**/dev-dist/**',
+          '**/.astro/**',
+          '**/coverage/**',
+          '**/.turbo/**',
+        ],
+      },
+    },
   },
 });

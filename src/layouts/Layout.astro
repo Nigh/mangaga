@@ -2,7 +2,7 @@
 import { ClientRouter } from 'astro:transitions';
 import { pwaInfo } from "virtual:pwa-info"
 import ReloadPrompt from "../components/ReloadPrompt.svelte"
-import ThemeToggle from "../components/ThemeToggle.svelte"
+import SiteHeader from "../components/SiteHeader.svelte"
 import "../styles/global.css"
 
 interface Props {
@@ -15,19 +15,23 @@ const assetBaseUrl = baseUrl.replace(/\/$/, "")
 ---
 
 <!doctype html>
-<html lang="en">
+<html lang="zh-CN">
 	<head>
 		<meta charset="UTF-8" />
-		<meta name="description" content="Astro description" />
-		<meta name="viewport" content="width=device-width" />
+		<meta
+			name="description"
+			content="将多张漫画图片按网格拼成一张大图，支持拖拽与整数格缩放，可导出 PNG。"
+		/>
+		<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover" />
+		<meta name="theme-color" content="#e11d48" />
 		<link rel="icon" type="image/svg+xml" href={`${assetBaseUrl}/favicon.svg`} />
 		<meta name="generator" content={Astro.generator} />
 		<title>{title}</title>
 		<ClientRouter />
 		{pwaInfo && <Fragment set:html={pwaInfo.webManifest.linkTag} />}
 	</head>
-	<body>
-		<ThemeToggle client:load />
+	<body class="flex min-h-screen flex-col">
+		<SiteHeader client:load />
 		<slot />
 		<ReloadPrompt client:load />
 	</body>

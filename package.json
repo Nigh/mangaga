@@ -1,9 +1,10 @@
 {
-  "name": "astro-pwa-template",
+  "name": "mangaga",
   "type": "module",
   "version": "0.0.1",
   "scripts": {
     "dev": "astro dev",
+    "dev:pwa": "PWA_DEV=true astro dev",
     "build": "astro build",
     "preview": "astro preview",
     "astro": "astro"
