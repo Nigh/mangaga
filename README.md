@@ -31,6 +31,53 @@ npm run build   # 构建到 ./dist
 npm run preview # 本地预览构建结果
 ```
 
+### GitHub Pages 部署与变量
+
+仓库已内置 `/.github/workflows/deploy-pages.yml`，推送到 `main` 后会自动部署到 GitHub Pages。
+
+在 GitHub 仓库 `Settings -> Secrets and variables -> Actions -> Variables` 中设置：
+
+- `SITE_URL`: 站点完整地址（例如 `https://nigh.github.io` 或你的自定义域名）
+- `BASE_PATH`: 站点子路径（根路径用 `/`；项目页一般是 `/mangaga`）
+
+常见值：
+
+- 用户/组织主页仓库（`<user>.github.io`）：`BASE_PATH=/`
+- 项目仓库（`<user>/<repo>`）：`BASE_PATH=/<repo>`
+
+> 未设置时会使用自动推断；建议显式设置，避免迁移域名或仓库名时路径异常。
+
+### 服务器部署（Caddy 静态托管）
+
+1. 在服务器上构建（可按部署路径设置变量）：
+
+```bash
+npm ci
+SITE_URL=https://mangaga.example.com BASE_PATH=/ npm run build
+```
+
+2. 配置 Caddy（`/etc/caddy/Caddyfile`）：
+
+```caddyfile
+mangaga.example.com {
+  encode zstd gzip
+  root * /var/www/mangaga/dist
+  try_files {path} /index.html
+  file_server
+}
+```
+
+3. 重载 Caddy：
+
+```bash
+sudo caddy reload --config /etc/caddy/Caddyfile
+```
+
+如果挂在子路径（例如 `https://example.com/mangaga/`）：
+
+- 构建时设为 `BASE_PATH=/mangaga`
+- Caddy 中使用 `handle_path /mangaga*` 指向同一份 `dist`
+
 技术栈：Astro、Svelte、Tailwind、DaisyUI、Vite PWA。
 
 ---
@@ -61,5 +108,50 @@ npm run dev
 npm run build
 npm run preview
 ```
+
+### GitHub Pages deployment and variables
+
+The repo includes `/.github/workflows/deploy-pages.yml` to auto-deploy on every push to `main`.
+
+In `Settings -> Secrets and variables -> Actions -> Variables`, set:
+
+- `SITE_URL`: full site URL (for example `https://nigh.github.io` or your custom domain)
+- `BASE_PATH`: path prefix (`/` for root, or `/mangaga` for project pages)
+
+Typical values:
+
+- User/Org pages repo (`<user>.github.io`): `BASE_PATH=/`
+- Project repo (`<user>/<repo>`): `BASE_PATH=/<repo>`
+
+If not set, the build falls back to auto-detection; explicit values are safer when repo/domain changes.
+
+### Server deployment (static hosting with Caddy)
+
+This is a static PWA app, so you do not need a long-running `npm run preview` process in production.
+
+```bash
+npm ci
+SITE_URL=https://mangaga.example.com BASE_PATH=/ npm run build
+```
+
+`/etc/caddy/Caddyfile`:
+
+```caddyfile
+mangaga.example.com {
+  encode zstd gzip
+  root * /var/www/mangaga/dist
+  try_files {path} /index.html
+  file_server
+}
+```
+
+```bash
+sudo caddy reload --config /etc/caddy/Caddyfile
+```
+
+If serving from a subpath like `https://example.com/mangaga/`:
+
+- Build with `BASE_PATH=/mangaga`
+- Use `handle_path /mangaga*` in Caddy to map requests to the same `dist` directory
 
 Stack: Astro, Svelte, Tailwind, DaisyUI, Vite PWA.
