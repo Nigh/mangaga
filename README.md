@@ -19,7 +19,7 @@
 
 ### 本地开发（面向贡献者）
 
-需要 Node.js 18+。
+需要 Node.js 24+。
 
 ```bash
 npm install
@@ -97,7 +97,7 @@ sudo caddy reload --config /etc/caddy/Caddyfile
 
 ### Local development
 
-Requires Node.js 18+.
+Requires Node.js 24+.
 
 ```bash
 npm install
