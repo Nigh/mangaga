@@ -9,17 +9,10 @@
 	} from "../lib/mangaLayout"
 	import { drawPanel, drawPanelInRect } from "../lib/mangaDraw"
 	import { percentStepForMaxEdge } from "../lib/mangaPctStep"
-
-	type Panel = {
-		id: string
-		col: number
-		row: number
-		colSpan: number
-		rowSpan: number
-		src: string
-		nw: number
-		nh: number
-	}
+	import type { MangaPanel as Panel } from "../lib/mangagaTypes"
+	import ComicCanvasStage from "./comic/ComicCanvasStage.svelte"
+	import ComicSelectionOverlay from "./comic/ComicSelectionOverlay.svelte"
+	import ComicStyleControls from "./comic/ComicStyleControls.svelte"
 
 	let gridCols = 2
 	let gridRows = 2
@@ -52,6 +45,19 @@
 	let grabDy = 0
 	let dragInnerX = 0
 	let dragInnerY = 0
+
+	const touchLongPressMs = 280
+	const touchMoveTolerancePx = 10
+	let touchDragMode = false
+	let touchLongPressTimer: ReturnType<typeof setTimeout> | null = null
+	let pendingTouch: {
+		pointerId: number
+		panelId: string
+		startClientX: number
+		startClientY: number
+		grabDx: number
+		grabDy: number
+	} | null = null
 
 	/** 先用 gap=0 量出轨道，再算全局最长边作百分比基准 */
 	$: layoutMeasure = computeGridTracks(gridCols, gridRows, panels, 0)
@@ -86,6 +92,11 @@
 
 	$: exportPixelW = Math.max(1, Math.round(designOuterW * exportOutputScale))
 	$: exportPixelH = Math.max(1, Math.round(designOuterH * exportOutputScale))
+	$: selectedPanel = selectedId ? panels.find((x) => x.id === selectedId) ?? null : null
+	$: selectedCanShrinkW = selectedPanel ? canShrinkW(selectedPanel) : false
+	$: selectedCanExpandW = selectedPanel ? canExpandW(selectedPanel) : false
+	$: selectedCanShrinkH = selectedPanel ? canShrinkH(selectedPanel) : false
+	$: selectedCanExpandH = selectedPanel ? canExpandH(selectedPanel) : false
 
 	let ro: ResizeObserver
 
@@ -508,33 +519,93 @@
 		return null
 	}
 
+	function clearTouchLongPressTimer() {
+		if (!touchLongPressTimer) return
+		clearTimeout(touchLongPressTimer)
+		touchLongPressTimer = null
+	}
+
+	function clearPendingTouchDrag() {
+		clearTouchLongPressTimer()
+		pendingTouch = null
+	}
+
+	function beginDrag(pointerId: number, panel: Panel, inner: { x: number; y: number }) {
+		const r = panelOuterRect(panel, layout)
+		dragId = panel.id
+		grabDx = inner.x - r.x
+		grabDy = inner.y - r.y
+		dragInnerX = inner.x - grabDx
+		dragInnerY = inner.y - grabDy
+		canvasEl.setPointerCapture(pointerId)
+	}
+
 	function onCanvasPointerDown(e: PointerEvent) {
 		if (!canvasEl) return
 		const inner = innerFromEvent(e)
 		const p = hitPanelAt(inner)
 		if (!p) {
+			clearPendingTouchDrag()
 			selectedId = null
 			return
 		}
-		const r = panelOuterRect(p, layout)
 		selectedId = p.id
-		dragId = p.id
-		grabDx = inner.x - r.x
-		grabDy = inner.y - r.y
-		dragInnerX = inner.x - grabDx
-		dragInnerY = inner.y - grabDy
-		canvasEl.setPointerCapture(e.pointerId)
+		if (e.pointerType === "touch") {
+			const r = panelOuterRect(p, layout)
+			clearPendingTouchDrag()
+			pendingTouch = {
+				pointerId: e.pointerId,
+				panelId: p.id,
+				startClientX: e.clientX,
+				startClientY: e.clientY,
+				grabDx: inner.x - r.x,
+				grabDy: inner.y - r.y,
+			}
+			touchLongPressTimer = setTimeout(() => {
+				if (!pendingTouch || pendingTouch.pointerId !== e.pointerId) return
+				const panel = panels.find((x) => x.id === pendingTouch?.panelId)
+				if (!panel || !canvasEl) {
+					clearPendingTouchDrag()
+					return
+				}
+				touchDragMode = true
+				dragId = panel.id
+				grabDx = pendingTouch.grabDx
+				grabDy = pendingTouch.grabDy
+				const rr = panelOuterRect(panel, layout)
+				dragInnerX = rr.x
+				dragInnerY = rr.y
+				canvasEl.setPointerCapture(e.pointerId)
+				clearPendingTouchDrag()
+			}, touchLongPressMs)
+			return
+		}
+		beginDrag(e.pointerId, p, inner)
 		e.preventDefault()
 	}
 
 	function onCanvasPointerMove(e: PointerEvent) {
+		if (pendingTouch && pendingTouch.pointerId === e.pointerId && !dragId) {
+			const dx = e.clientX - pendingTouch.startClientX
+			const dy = e.clientY - pendingTouch.startClientY
+			const dist = Math.hypot(dx, dy)
+			if (dist > touchMoveTolerancePx) {
+				clearPendingTouchDrag()
+			}
+		}
 		if (dragId == null) return
 		const inner = innerFromEvent(e)
 		dragInnerX = inner.x - grabDx
 		dragInnerY = inner.y - grabDy
+		if (e.pointerType === "touch") {
+			e.preventDefault()
+		}
 	}
 
 	function onCanvasPointerUp(e: PointerEvent) {
+		if (pendingTouch && pendingTouch.pointerId === e.pointerId) {
+			clearPendingTouchDrag()
+		}
 		if (dragId == null) return
 		const p = panels.find((x) => x.id === dragId)
 		if (p) {
@@ -543,6 +614,7 @@
 			if (ncol !== p.col || nrow !== p.row) tryMoveOrSwap(p, ncol, nrow)
 		}
 		dragId = null
+		touchDragMode = false
 		try {
 			canvasEl?.releasePointerCapture(e.pointerId)
 		} catch {
@@ -591,21 +663,9 @@
 		return Math.min(max, Math.max(min, rounded))
 	}
 
-	/** 叠加层：inner 坐标系中心点 + 尺寸，配合 translate(-50%,-50%) 居中 */
-	function overlayCenter(
-		innerCx: number,
-		innerCy: number,
-		innerW: number,
-		innerH: number,
-	) {
-		const s = previewScale
-		const pad = canvasPadPx
-		return {
-			left: (pad + innerCx) * s,
-			top: (pad + innerCy) * s,
-			width: innerW * s,
-			height: innerH * s,
-		}
+	function onSelectedDeltaSpan(dCol: number, dRow: number) {
+		if (!selectedId) return
+		tryDeltaSpan(selectedId, dCol, dRow)
 	}
 
 	async function exportPng() {
@@ -685,6 +745,7 @@
 		if (typeof document !== "undefined") {
 			document.removeEventListener("pointerdown", onDocumentPointerDown, true)
 		}
+		clearPendingTouchDrag()
 		ro?.disconnect()
 		for (const p of panels) {
 			URL.revokeObjectURL(p.src)
@@ -730,300 +791,54 @@
 				完整显示。选中后出现删除与箭头。
 			</p>
 
-			<div
-				bind:this={previewWrapEl}
-				class="bg-base-300/40 border-base-300 w-full max-w-full overflow-auto rounded-2xl border-2 p-2 md:p-3"
-				style="max-height: min(75vh, 880px);"
+			<ComicCanvasStage
+				bind:previewWrapEl
+				bind:canvasEl
+				{displayW}
+				useTouchDragMode={touchDragMode || dragId != null}
+				{onCanvasPointerDown}
+				{onCanvasPointerMove}
+				{onCanvasPointerUp}
 			>
-				<div
-					class="relative mx-auto inline-block max-w-full"
-					style="width: {displayW}px; min-width: min(100%, {displayW}px);"
-				>
-					<canvas
-						bind:this={canvasEl}
-						class="bg-base-100 block max-w-full touch-none"
-						on:pointerdown={onCanvasPointerDown}
-						on:pointermove={onCanvasPointerMove}
-						on:pointerup={onCanvasPointerUp}
-						on:pointercancel={onCanvasPointerUp}
-					></canvas>
+				{#if selectedPanel && !dragId}
+					<ComicSelectionOverlay
+						layout={layout}
+						{previewScale}
+						{canvasPadPx}
+						selectedPanel={selectedPanel}
+						canShrinkW={selectedCanShrinkW}
+						canExpandW={selectedCanExpandW}
+						canShrinkH={selectedCanShrinkH}
+						canExpandH={selectedCanExpandH}
+						onRemove={() => removePanel(selectedPanel.id)}
+						onDeltaSpan={onSelectedDeltaSpan}
+					/>
+				{/if}
+			</ComicCanvasStage>
 
-					{#if selectedId && !dragId}
-						{@const sp = panels.find((x) => x.id === selectedId)}
-						{#if sp}
-							{@const r = panelOuterRect(sp, layout)}
-							{@const del = overlayCenter(r.x + r.w / 2, r.y + r.h / 2, 40, 40)}
-							<div class="pointer-events-none absolute inset-0 z-10" data-mg-selection-ui>
-							<button
-								type="button"
-								data-remove
-								class="btn btn-error btn-sm pointer-events-auto absolute min-h-10 min-w-10 rounded-full p-0 text-lg font-bold shadow-md"
-								style="left: {del.left}px; top: {del.top}px; width: {del.width}px; height: {del.height}px; transform: translate(-50%, -50%);"
-								aria-label="删除"
-								on:click|stopPropagation={() => removePanel(sp.id)}
-							>
-								×
-							</button>
-							{#if canShrinkW(sp)}
-								{@const b = overlayCenter(r.x + 20, r.y + r.h / 2, 40, 44)}
-								<button
-									type="button"
-									class="btn btn-primary btn-sm pointer-events-auto absolute min-h-11 min-w-11 p-0 text-xl"
-									style="left: {b.left}px; top: {b.top}px; width: {b.width}px; height: {b.height}px; transform: translate(-50%, -50%);"
-									aria-label="减宽"
-									on:click|stopPropagation={() => tryDeltaSpan(sp.id, -1, 0)}
-								>
-									←
-								</button>
-							{/if}
-							{#if canExpandW(sp)}
-								{@const b = overlayCenter(r.x + r.w - 20, r.y + r.h / 2, 40, 44)}
-								<button
-									type="button"
-									class="btn btn-primary btn-sm pointer-events-auto absolute min-h-11 min-w-11 p-0 text-xl"
-									style="left: {b.left}px; top: {b.top}px; width: {b.width}px; height: {b.height}px; transform: translate(-50%, -50%);"
-									aria-label="加宽"
-									on:click|stopPropagation={() => tryDeltaSpan(sp.id, 1, 0)}
-								>
-									→
-								</button>
-							{/if}
-							{#if canShrinkH(sp)}
-								{@const b = overlayCenter(r.x + r.w / 2, r.y + 22, 44, 40)}
-								<button
-									type="button"
-									class="btn btn-primary btn-sm pointer-events-auto absolute min-h-10 min-w-12 p-0 text-xl"
-									style="left: {b.left}px; top: {b.top}px; width: {b.width}px; height: {b.height}px; transform: translate(-50%, -50%);"
-									aria-label="减高"
-									on:click|stopPropagation={() => tryDeltaSpan(sp.id, 0, -1)}
-								>
-									↑
-								</button>
-							{/if}
-							{#if canExpandH(sp)}
-								{@const b = overlayCenter(r.x + r.w / 2, r.y + r.h - 22, 44, 40)}
-								<button
-									type="button"
-									class="btn btn-primary btn-sm pointer-events-auto absolute min-h-10 min-w-12 p-0 text-xl"
-									style="left: {b.left}px; top: {b.top}px; width: {b.width}px; height: {b.height}px; transform: translate(-50%, -50%);"
-									aria-label="加高"
-									on:click|stopPropagation={() => tryDeltaSpan(sp.id, 0, 1)}
-								>
-									↓
-								</button>
-							{/if}
-							</div>
-						{/if}
-					{/if}
-				</div>
-			</div>
-
-			<div class="divider my-0 text-sm font-medium">样式与导出</div>
-
-			<div class="flex flex-col gap-5">
-				<div class="form-control gap-2">
-					<span class="label-text text-sm font-medium md:text-base">列数 (1–4)</span>
-					<div class="flex items-center gap-2">
-						<button
-							type="button"
-							class="btn btn-lg min-h-14 min-w-14 shrink-0 text-xl"
-							on:click={() => {
-								gridCols = numStep(gridCols, 1, 4, 1, -1)
-								clampGridCols()
-							}}
-						>
-							−
-						</button>
-						<input
-							type="number"
-							min="1"
-							max="4"
-							class="input input-bordered input-lg min-h-14 flex-1 text-center text-lg"
-							bind:value={gridCols}
-							on:change={clampGridCols}
-						/>
-						<button
-							type="button"
-							class="btn btn-lg min-h-14 min-w-14 shrink-0 text-xl"
-							on:click={() => {
-								gridCols = numStep(gridCols, 1, 4, 1, 1)
-								clampGridCols()
-							}}
-						>
-							+
-						</button>
-					</div>
-				</div>
-
-				<label class="form-control gap-2">
-					<span class="label-text text-sm font-medium md:text-base">全图背景色</span>
-					<input type="color" bind:value={canvasBgColor} class="input input-bordered h-14 w-full min-h-14" />
-				</label>
-
-				<div class="form-control gap-2">
-					<span class="label-text text-sm font-medium md:text-base">
-						全图外边距
-					</span>
-					<div class="flex items-center gap-2">
-						<button
-							type="button"
-							class="btn btn-lg min-h-14 min-w-14 shrink-0 text-xl"
-							on:click={() =>
-								(canvasPaddingPct = numStep(canvasPaddingPct, 0, 30, pctStep, -1))}
-						>
-							−
-						</button>
-						<div class="join flex min-h-14 flex-1">
-							<input
-								type="number"
-								min="0"
-								max="30"
-								step={pctStep}
-								class="input input-bordered join-item min-h-14 flex-1 text-center text-lg"
-								bind:value={canvasPaddingPct}
-							/>
-							<span class="btn btn-outline join-item border-base-300 text-base-content/80 pointer-events-none min-h-14 min-w-[2.75rem] px-2 text-lg font-medium">%</span>
-						</div>
-						<button
-							type="button"
-							class="btn btn-lg min-h-14 min-w-14 shrink-0 text-xl"
-							on:click={() =>
-								(canvasPaddingPct = numStep(canvasPaddingPct, 0, 30, pctStep, 1))}
-						>
-							+
-						</button>
-					</div>
-					<p class="text-base-content/60 text-xs">约 {canvasPadPx} px</p>
-				</div>
-
-				<div class="form-control gap-2">
-					<span class="label-text text-sm font-medium md:text-base">格间距</span>
-					<div class="flex items-center gap-2">
-						<button
-							type="button"
-							class="btn btn-lg min-h-14 min-w-14 shrink-0 text-xl"
-							on:click={() => (cellGapPct = numStep(cellGapPct, 0, 30, pctStep, -1))}
-						>
-							−
-						</button>
-						<div class="join flex min-h-14 flex-1">
-							<input
-								type="number"
-								min="0"
-								max="30"
-								step={pctStep}
-								class="input input-bordered join-item min-h-14 flex-1 text-center text-lg"
-								bind:value={cellGapPct}
-							/>
-							<span class="btn btn-outline join-item border-base-300 text-base-content/80 pointer-events-none min-h-14 min-w-[2.75rem] px-2 text-lg font-medium">%</span>
-						</div>
-						<button
-							type="button"
-							class="btn btn-lg min-h-14 min-w-14 shrink-0 text-xl"
-							on:click={() => (cellGapPct = numStep(cellGapPct, 0, 30, pctStep, 1))}
-						>
-							+
-						</button>
-					</div>
-					<p class="text-base-content/60 text-xs">约 {gapPx} px</p>
-				</div>
-
-				<div class="form-control gap-2">
-					<span class="label-text text-sm font-medium md:text-base">图片内边距</span>
-					<div class="flex items-center gap-2">
-						<button
-							type="button"
-							class="btn btn-lg min-h-14 min-w-14 shrink-0 text-xl"
-							on:click={() =>
-								(panelPaddingPct = numStep(panelPaddingPct, 0, 30, pctStep, -1))}
-						>
-							−
-						</button>
-						<div class="join flex min-h-14 flex-1">
-							<input
-								type="number"
-								min="0"
-								max="30"
-								step={pctStep}
-								class="input input-bordered join-item min-h-14 flex-1 text-center text-lg"
-								bind:value={panelPaddingPct}
-							/>
-							<span class="btn btn-outline join-item border-base-300 text-base-content/80 pointer-events-none min-h-14 min-w-[2.75rem] px-2 text-lg font-medium">%</span>
-						</div>
-						<button
-							type="button"
-							class="btn btn-lg min-h-14 min-w-14 shrink-0 text-xl"
-							on:click={() =>
-								(panelPaddingPct = numStep(panelPaddingPct, 0, 30, pctStep, 1))}
-						>
-							+
-						</button>
-					</div>
-					<p class="text-base-content/60 text-xs">约 {panelPadPx} px</p>
-				</div>
-
-				<div class="form-control gap-2">
-					<span class="label-text text-sm font-medium md:text-base">单格描边</span>
-					<div class="flex items-center gap-2">
-						<button
-							type="button"
-							class="btn btn-lg min-h-14 min-w-14 shrink-0 text-xl"
-							on:click={() =>
-								(panelBorderPct = numStep(panelBorderPct, 0, 30, pctStep, -1))}
-						>
-							−
-						</button>
-						<div class="join flex min-h-14 flex-1">
-							<input
-								type="number"
-								min="0"
-								max="30"
-								step={pctStep}
-								class="input input-bordered join-item min-h-14 flex-1 text-center text-lg"
-								bind:value={panelBorderPct}
-							/>
-							<span class="btn btn-outline join-item border-base-300 text-base-content/80 pointer-events-none min-h-14 min-w-[2.75rem] px-2 text-lg font-medium">%</span>
-						</div>
-						<button
-							type="button"
-							class="btn btn-lg min-h-14 min-w-14 shrink-0 text-xl"
-							on:click={() =>
-								(panelBorderPct = numStep(panelBorderPct, 0, 30, pctStep, 1))}
-						>
-							+
-						</button>
-					</div>
-					<p class="text-base-content/60 text-xs">约 {borderPx} px</p>
-				</div>
-
-				<label class="form-control gap-2">
-					<span class="label-text text-sm font-medium md:text-base">单格描边颜色</span>
-					<input type="color" bind:value={panelBorderColor} class="input input-bordered h-14 w-full min-h-14" />
-				</label>
-
-				<div class="form-control gap-2">
-					<span class="label-text text-sm font-medium md:text-base">
-						导出缩放（约 {exportPixelW} × {exportPixelH} px）
-					</span>
-					<div class="flex flex-wrap items-center gap-3">
-						{#each [1, 0.75, 0.5, 0.25] as r}
-							<button
-								type="button"
-								class="btn btn-lg min-h-12 flex-1 sm:flex-none {exportOutputScale === r ? 'btn-primary' : 'btn-outline'}"
-								on:click={() => (exportOutputScale = r)}
-							>
-								{Math.round(r * 100)}%
-							</button>
-						{/each}
-						<button type="button" class="btn btn-primary btn-lg min-h-12 px-6 text-lg" on:click={exportPng}>
-							导出 PNG
-						</button>
-					</div>
-					<p class="text-base-content/60 text-sm">
-						逻辑尺寸 {Math.round(designOuterW)} × {Math.round(designOuterH)} px；基准边长 {Math.round(globalMaxEdge)} px
-					</p>
-				</div>
-			</div>
+			<ComicStyleControls
+				bind:gridCols
+				bind:canvasBgColor
+				bind:canvasPaddingPct
+				bind:cellGapPct
+				bind:panelPaddingPct
+				bind:panelBorderPct
+				bind:panelBorderColor
+				bind:exportOutputScale
+				{pctStep}
+				{gapPx}
+				{canvasPadPx}
+				{panelPadPx}
+				{borderPx}
+				{exportPixelW}
+				{exportPixelH}
+				{designOuterW}
+				{designOuterH}
+				{globalMaxEdge}
+				{numStep}
+				onClampGridCols={clampGridCols}
+				onExportPng={exportPng}
+			/>
 		</div>
 	</section>
 </div>

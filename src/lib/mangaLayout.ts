@@ -28,25 +28,37 @@ function rowOccupied(r: number, panels: PanelLike[], gridRows: number): boolean 
 	return panels.some((p) => p.row <= r && r < p.row + p.rowSpan)
 }
 
-/** 无内容的列继承左侧列宽；第 0 列空则继承右侧第一个有图列 */
+/** 无内容的列继承最近有图列宽；左右都无图时回退最小轨道宽 */
 function fillEmptyColumnWidths(
 	colWidths: number[],
 	gridCols: number,
 	panels: PanelLike[],
 	emptyMinTrack: number,
 ) {
+	const occupied = new Set<number>()
 	for (let c = 0; c < gridCols; c++) {
-		if (colOccupied(c, panels, gridCols)) continue
+		if (colOccupied(c, panels, gridCols)) occupied.add(c)
+	}
+
+	for (let c = 0; c < gridCols; c++) {
+		if (occupied.has(c)) continue
 		let inherit = emptyMinTrack
-		if (c > 0) inherit = Math.max(inherit, colWidths[c - 1])
-		else {
-			for (let k = 1; k < gridCols; k++) {
-				if (colOccupied(k, panels, gridCols)) {
-					inherit = Math.max(inherit, colWidths[k])
-					break
-				}
+		let bestDist = Infinity
+
+		for (const k of occupied) {
+			const d = Math.abs(c - k)
+			if (d < bestDist) {
+				bestDist = d
+				inherit = Math.max(inherit, colWidths[k])
+			} else if (d === bestDist && k < c) {
+				inherit = Math.max(inherit, colWidths[k])
 			}
 		}
+
+		if (bestDist === Infinity && c > 0) inherit = Math.max(inherit, colWidths[c - 1])
+		if (bestDist === Infinity && c + 1 < gridCols)
+			inherit = Math.max(inherit, colWidths[c + 1])
+
 		colWidths[c] = Math.max(colWidths[c], inherit)
 	}
 }
