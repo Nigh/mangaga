@@ -15,6 +15,13 @@
 
 	export let onRemove: () => void
 	export let onDeltaSpan: (dCol: number, dRow: number) => void
+	export let labels = {
+		delete: "Delete",
+		shrinkWidth: "Narrow",
+		expandWidth: "Widen",
+		shrinkHeight: "Shorten",
+		expandHeight: "Heighten",
+	}
 
 	function overlayCenter(
 		innerCx: number,
@@ -42,7 +49,7 @@
 			data-remove
 			class="btn btn-error btn-sm pointer-events-auto absolute min-h-10 min-w-10 rounded-full p-0 text-lg font-bold shadow-md"
 			style="left: {del.left}px; top: {del.top}px; width: {del.width}px; height: {del.height}px; transform: translate(-50%, -50%);"
-			aria-label="删除"
+			aria-label={labels.delete}
 			on:click|stopPropagation={onRemove}
 		>
 			×
@@ -53,7 +60,7 @@
 				type="button"
 				class="btn btn-primary btn-sm pointer-events-auto absolute min-h-11 min-w-11 p-0 text-xl"
 				style="left: {b.left}px; top: {b.top}px; width: {b.width}px; height: {b.height}px; transform: translate(-50%, -50%);"
-				aria-label="减宽"
+				aria-label={labels.shrinkWidth}
 				on:click|stopPropagation={() => onDeltaSpan(-1, 0)}
 			>
 				←
@@ -65,7 +72,7 @@
 				type="button"
 				class="btn btn-primary btn-sm pointer-events-auto absolute min-h-11 min-w-11 p-0 text-xl"
 				style="left: {b.left}px; top: {b.top}px; width: {b.width}px; height: {b.height}px; transform: translate(-50%, -50%);"
-				aria-label="加宽"
+				aria-label={labels.expandWidth}
 				on:click|stopPropagation={() => onDeltaSpan(1, 0)}
 			>
 				→
@@ -77,7 +84,7 @@
 				type="button"
 				class="btn btn-primary btn-sm pointer-events-auto absolute min-h-10 min-w-12 p-0 text-xl"
 				style="left: {b.left}px; top: {b.top}px; width: {b.width}px; height: {b.height}px; transform: translate(-50%, -50%);"
-				aria-label="减高"
+				aria-label={labels.shrinkHeight}
 				on:click|stopPropagation={() => onDeltaSpan(0, -1)}
 			>
 				↑
@@ -89,7 +96,7 @@
 				type="button"
 				class="btn btn-primary btn-sm pointer-events-auto absolute min-h-10 min-w-12 p-0 text-xl"
 				style="left: {b.left}px; top: {b.top}px; width: {b.width}px; height: {b.height}px; transform: translate(-50%, -50%);"
-				aria-label="加高"
+				aria-label={labels.expandHeight}
 				on:click|stopPropagation={() => onDeltaSpan(0, 1)}
 			>
 				↓

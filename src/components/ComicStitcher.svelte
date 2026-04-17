@@ -9,6 +9,11 @@
 	} from "../lib/mangaLayout"
 	import { drawPanel, drawPanelInRect } from "../lib/mangaDraw"
 	import { percentStepForMaxEdge } from "../lib/mangaPctStep"
+	import {
+		MANGAGA_I18N,
+		detectInitialLocale,
+		type MangagaLocale,
+	} from "../lib/mangagaI18n"
 	import type { MangaPanel as Panel } from "../lib/mangagaTypes"
 	import ComicCanvasStage from "./comic/ComicCanvasStage.svelte"
 	import ComicSelectionOverlay from "./comic/ComicSelectionOverlay.svelte"
@@ -46,17 +51,20 @@
 	let dragInnerX = 0
 	let dragInnerY = 0
 
-	const touchLongPressMs = 280
+	const touchLongPressMs = 420
 	const touchMoveTolerancePx = 10
 	let touchDragMode = false
+	let locale: MangagaLocale = "zh"
 	let touchLongPressTimer: ReturnType<typeof setTimeout> | null = null
-	let pendingTouch: {
+	let pendingTouchGesture: {
 		pointerId: number
-		panelId: string
+		targetPanelId: string | null
+		selectedAtDown: string | null
 		startClientX: number
 		startClientY: number
 		grabDx: number
 		grabDy: number
+		longPressTriggered: boolean
 	} | null = null
 
 	/** 先用 gap=0 量出轨道，再算全局最长边作百分比基准 */
@@ -97,6 +105,7 @@
 	$: selectedCanExpandW = selectedPanel ? canExpandW(selectedPanel) : false
 	$: selectedCanShrinkH = selectedPanel ? canShrinkH(selectedPanel) : false
 	$: selectedCanExpandH = selectedPanel ? canExpandH(selectedPanel) : false
+	$: t = MANGAGA_I18N[locale]
 
 	let ro: ResizeObserver
 
@@ -317,14 +326,14 @@
 				nh = dim.nh
 			} catch {
 				URL.revokeObjectURL(src)
-				showMsg("无法读取图片，请换一张试试")
+				showMsg(t.cannotReadImage)
 				continue
 			}
 			let slot = findFreeSlot(1, 1)
 			if (!slot) slot = growGridAndFindSlot(1, 1)
 			if (!slot) {
 				URL.revokeObjectURL(src)
-				showMsg("无法放入网格")
+				showMsg(t.cannotPlaceInGrid)
 				break
 			}
 			const id = crypto.randomUUID()
@@ -525,9 +534,9 @@
 		touchLongPressTimer = null
 	}
 
-	function clearPendingTouchDrag() {
+	function clearPendingTouchGesture() {
 		clearTouchLongPressTimer()
-		pendingTouch = null
+		pendingTouchGesture = null
 	}
 
 	function beginDrag(pointerId: number, panel: Panel, inner: { x: number; y: number }) {
@@ -544,53 +553,66 @@
 		if (!canvasEl) return
 		const inner = innerFromEvent(e)
 		const p = hitPanelAt(inner)
-		if (!p) {
-			clearPendingTouchDrag()
-			selectedId = null
-			return
-		}
-		selectedId = p.id
 		if (e.pointerType === "touch") {
-			const r = panelOuterRect(p, layout)
-			clearPendingTouchDrag()
-			pendingTouch = {
+			clearPendingTouchGesture()
+			const r = p ? panelOuterRect(p, layout) : null
+			pendingTouchGesture = {
 				pointerId: e.pointerId,
-				panelId: p.id,
+				targetPanelId: p?.id ?? null,
+				selectedAtDown: selectedId,
 				startClientX: e.clientX,
 				startClientY: e.clientY,
-				grabDx: inner.x - r.x,
-				grabDy: inner.y - r.y,
+				grabDx: r ? inner.x - r.x : 0,
+				grabDy: r ? inner.y - r.y : 0,
+				longPressTriggered: false,
 			}
 			touchLongPressTimer = setTimeout(() => {
-				if (!pendingTouch || pendingTouch.pointerId !== e.pointerId) return
-				const panel = panels.find((x) => x.id === pendingTouch?.panelId)
-				if (!panel || !canvasEl) {
-					clearPendingTouchDrag()
+				if (!pendingTouchGesture || pendingTouchGesture.pointerId !== e.pointerId) return
+				pendingTouchGesture.longPressTriggered = true
+
+				if (pendingTouchGesture.selectedAtDown == null) {
+					selectedId = null
 					return
 				}
+
+				if (pendingTouchGesture.targetPanelId !== pendingTouchGesture.selectedAtDown) {
+					return
+				}
+
+				const panel = panels.find((x) => x.id === pendingTouchGesture?.targetPanelId)
+				if (!panel) {
+					clearPendingTouchGesture()
+					return
+				}
+
 				touchDragMode = true
 				dragId = panel.id
-				grabDx = pendingTouch.grabDx
-				grabDy = pendingTouch.grabDy
+				grabDx = pendingTouchGesture.grabDx
+				grabDy = pendingTouchGesture.grabDy
 				const rr = panelOuterRect(panel, layout)
 				dragInnerX = rr.x
 				dragInnerY = rr.y
 				canvasEl.setPointerCapture(e.pointerId)
-				clearPendingTouchDrag()
+				clearPendingTouchGesture()
 			}, touchLongPressMs)
 			return
 		}
+		if (!p) {
+			selectedId = null
+			return
+		}
+		selectedId = p.id
 		beginDrag(e.pointerId, p, inner)
 		e.preventDefault()
 	}
 
 	function onCanvasPointerMove(e: PointerEvent) {
-		if (pendingTouch && pendingTouch.pointerId === e.pointerId && !dragId) {
-			const dx = e.clientX - pendingTouch.startClientX
-			const dy = e.clientY - pendingTouch.startClientY
+		if (pendingTouchGesture && pendingTouchGesture.pointerId === e.pointerId && !dragId) {
+			const dx = e.clientX - pendingTouchGesture.startClientX
+			const dy = e.clientY - pendingTouchGesture.startClientY
 			const dist = Math.hypot(dx, dy)
-			if (dist > touchMoveTolerancePx) {
-				clearPendingTouchDrag()
+			if (dist > touchMoveTolerancePx && !pendingTouchGesture.longPressTriggered) {
+				clearPendingTouchGesture()
 			}
 		}
 		if (dragId == null) return
@@ -603,9 +625,30 @@
 	}
 
 	function onCanvasPointerUp(e: PointerEvent) {
-		if (pendingTouch && pendingTouch.pointerId === e.pointerId) {
-			clearPendingTouchDrag()
+		const pending = pendingTouchGesture
+		if (pending && pending.pointerId === e.pointerId) {
+			clearPendingTouchGesture()
+			if (!pending.longPressTriggered) {
+				const dx = e.clientX - pending.startClientX
+				const dy = e.clientY - pending.startClientY
+				const moved = Math.hypot(dx, dy) > touchMoveTolerancePx
+				if (!moved) {
+					const targetPanelId = pending.targetPanelId
+					if (pending.selectedAtDown == null) {
+						if (targetPanelId) {
+							selectedId = targetPanelId
+						} else {
+							selectedId = null
+						}
+					} else if (targetPanelId && targetPanelId !== pending.selectedAtDown) {
+						selectedId = targetPanelId
+					} else {
+						selectedId = null
+					}
+				}
+			}
 		}
+
 		if (dragId == null) return
 		const p = panels.find((x) => x.id === dragId)
 		if (p) {
@@ -670,7 +713,7 @@
 
 	async function exportPng() {
 		if (!panels.length) {
-			showMsg("请先添加图片")
+			showMsg(t.pleaseAddImages)
 			return
 		}
 		await loadAllImages()
@@ -728,6 +771,7 @@
 	}
 
 	onMount(() => {
+		locale = detectInitialLocale()
 		if (typeof document !== "undefined") {
 			document.addEventListener("pointerdown", onDocumentPointerDown, true)
 		}
@@ -745,7 +789,7 @@
 		if (typeof document !== "undefined") {
 			document.removeEventListener("pointerdown", onDocumentPointerDown, true)
 		}
-		clearPendingTouchDrag()
+		clearPendingTouchGesture()
 		ro?.disconnect()
 		for (const p of panels) {
 			URL.revokeObjectURL(p.src)
@@ -756,10 +800,19 @@
 
 <div class="text-base-content mx-auto flex w-full max-w-3xl flex-col gap-6 px-4 pb-24 pt-8 md:max-w-4xl md:gap-8 md:px-6">
 	<header class="text-center">
+		<div class="mb-3 flex justify-end">
+			<button
+				type="button"
+				class="btn btn-sm btn-outline"
+				on:click={() => {
+					locale = locale === "zh" ? "en" : "zh"
+				}}
+			>
+				{t.switchLanguage}
+			</button>
+		</div>
 		<h1 class="text-primary text-4xl font-bold tracking-tight md:text-5xl">Mangaga</h1>
-		<p class="text-base-content/75 mt-2 text-base md:text-lg">
-			A simple comic layout tool
-		</p>
+		<p class="text-base-content/75 mt-2 text-base md:text-lg">{t.subtitle}</p>
 	</header>
 
 	{#if message}
@@ -770,7 +823,7 @@
 		<div class="card-body gap-6 p-5 md:p-8">
 			<div class="flex flex-wrap items-stretch gap-3">
 				<label class="btn btn-primary btn-lg min-h-14 shrink-0 cursor-pointer px-6 text-lg font-medium">
-					添加图片
+					{t.addImages}
 					<input
 						bind:this={fileInput}
 						id="mangaga-files"
@@ -782,14 +835,11 @@
 					/>
 				</label>
 				<button type="button" class="btn btn-ghost btn-lg text-error min-h-14 px-6 text-lg" on:click={clearAll}>
-					清空
+					{t.clearAll}
 				</button>
 			</div>
 
-			<p class="text-base-content/70 text-sm leading-relaxed md:text-base">
-				在画布上拖动图片；预览与导出使用同一套几何与 contain
-				完整显示。选中后出现删除与箭头。
-			</p>
+			<p class="text-base-content/70 text-sm leading-relaxed md:text-base">{t.touchHint}</p>
 
 			<ComicCanvasStage
 				bind:previewWrapEl
@@ -810,6 +860,7 @@
 						canExpandW={selectedCanExpandW}
 						canShrinkH={selectedCanShrinkH}
 						canExpandH={selectedCanExpandH}
+						labels={t}
 						onRemove={() => removePanel(selectedPanel.id)}
 						onDeltaSpan={onSelectedDeltaSpan}
 					/>
@@ -836,6 +887,7 @@
 				{designOuterH}
 				{globalMaxEdge}
 				{numStep}
+				labels={t}
 				onClampGridCols={clampGridCols}
 				onExportPng={exportPng}
 			/>

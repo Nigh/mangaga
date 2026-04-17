@@ -28,13 +28,28 @@
 	) => number
 	export let onClampGridCols: () => void
 	export let onExportPng: () => void
+	export let labels = {
+		panelStyleAndExport: "Style & Export",
+		gridCols: "Columns (1-4)",
+		canvasBgColor: "Canvas Background",
+		canvasPadding: "Canvas Padding",
+		cellGap: "Cell Gap",
+		panelPadding: "Image Padding",
+		panelBorder: "Panel Border",
+		panelBorderColor: "Panel Border Color",
+		exportPng: "Export PNG",
+		approxPx: (px: number) => `about ${px} px`,
+		exportScaleLabel: (w: number, h: number) => `Export Scale (about ${w} × ${h} px)`,
+		logicSizeLabel: (w: number, h: number, edge: number) =>
+			`Logical size ${w} × ${h} px; base edge ${edge} px`,
+	}
 </script>
 
-<div class="divider my-0 text-sm font-medium">样式与导出</div>
+<div class="divider my-0 text-sm font-medium">{labels.panelStyleAndExport}</div>
 
 <div class="flex flex-col gap-5">
 	<div class="form-control gap-2">
-		<span class="label-text text-sm font-medium md:text-base">列数 (1–4)</span>
+		<span class="label-text text-sm font-medium md:text-base">{labels.gridCols}</span>
 		<div class="flex items-center gap-2">
 			<button
 				type="button"
@@ -68,12 +83,12 @@
 	</div>
 
 	<label class="form-control gap-2">
-		<span class="label-text text-sm font-medium md:text-base">全图背景色</span>
+		<span class="label-text text-sm font-medium md:text-base">{labels.canvasBgColor}</span>
 		<input type="color" bind:value={canvasBgColor} class="input input-bordered h-14 w-full min-h-14" />
 	</label>
 
 	<div class="form-control gap-2">
-		<span class="label-text text-sm font-medium md:text-base">全图外边距</span>
+		<span class="label-text text-sm font-medium md:text-base">{labels.canvasPadding}</span>
 		<div class="flex items-center gap-2">
 			<button
 				type="button"
@@ -101,11 +116,11 @@
 				+
 			</button>
 		</div>
-		<p class="text-base-content/60 text-xs">约 {canvasPadPx} px</p>
+		<p class="text-base-content/60 text-xs">{labels.approxPx(canvasPadPx)}</p>
 	</div>
 
 	<div class="form-control gap-2">
-		<span class="label-text text-sm font-medium md:text-base">格间距</span>
+		<span class="label-text text-sm font-medium md:text-base">{labels.cellGap}</span>
 		<div class="flex items-center gap-2">
 			<button
 				type="button"
@@ -133,11 +148,11 @@
 				+
 			</button>
 		</div>
-		<p class="text-base-content/60 text-xs">约 {gapPx} px</p>
+		<p class="text-base-content/60 text-xs">{labels.approxPx(gapPx)}</p>
 	</div>
 
 	<div class="form-control gap-2">
-		<span class="label-text text-sm font-medium md:text-base">图片内边距</span>
+		<span class="label-text text-sm font-medium md:text-base">{labels.panelPadding}</span>
 		<div class="flex items-center gap-2">
 			<button
 				type="button"
@@ -165,11 +180,11 @@
 				+
 			</button>
 		</div>
-		<p class="text-base-content/60 text-xs">约 {panelPadPx} px</p>
+		<p class="text-base-content/60 text-xs">{labels.approxPx(panelPadPx)}</p>
 	</div>
 
 	<div class="form-control gap-2">
-		<span class="label-text text-sm font-medium md:text-base">单格描边</span>
+		<span class="label-text text-sm font-medium md:text-base">{labels.panelBorder}</span>
 		<div class="flex items-center gap-2">
 			<button
 				type="button"
@@ -197,16 +212,16 @@
 				+
 			</button>
 		</div>
-		<p class="text-base-content/60 text-xs">约 {borderPx} px</p>
+		<p class="text-base-content/60 text-xs">{labels.approxPx(borderPx)}</p>
 	</div>
 
 	<label class="form-control gap-2">
-		<span class="label-text text-sm font-medium md:text-base">单格描边颜色</span>
+		<span class="label-text text-sm font-medium md:text-base">{labels.panelBorderColor}</span>
 		<input type="color" bind:value={panelBorderColor} class="input input-bordered h-14 w-full min-h-14" />
 	</label>
 
 	<div class="form-control gap-2">
-		<span class="label-text text-sm font-medium md:text-base">导出缩放（约 {exportPixelW} × {exportPixelH} px）</span>
+		<span class="label-text text-sm font-medium md:text-base">{labels.exportScaleLabel(exportPixelW, exportPixelH)}</span>
 		<div class="flex flex-wrap items-center gap-3">
 			{#each [1, 0.75, 0.5, 0.25] as r}
 				<button
@@ -218,11 +233,15 @@
 				</button>
 			{/each}
 			<button type="button" class="btn btn-primary btn-lg min-h-12 px-6 text-lg" on:click={onExportPng}>
-				导出 PNG
+				{labels.exportPng}
 			</button>
 		</div>
 		<p class="text-base-content/60 text-sm">
-			逻辑尺寸 {Math.round(designOuterW)} × {Math.round(designOuterH)} px；基准边长 {Math.round(globalMaxEdge)} px
+			{labels.logicSizeLabel(
+				Math.round(designOuterW),
+				Math.round(designOuterH),
+				Math.round(globalMaxEdge),
+			)}
 		</p>
 	</div>
 </div>
