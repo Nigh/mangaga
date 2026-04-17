@@ -22,6 +22,7 @@
 		shrinkHeight: "Shorten",
 		expandHeight: "Heighten",
 	}
+	export let controlsEnabled = true
 
 	function overlayCenter(
 		innerCx: number,
@@ -47,9 +48,10 @@
 		<button
 			type="button"
 			data-remove
-			class="btn btn-error btn-sm pointer-events-auto absolute min-h-10 min-w-10 rounded-full p-0 text-lg font-bold shadow-md"
-			style="left: {del.left}px; top: {del.top}px; width: {del.width}px; height: {del.height}px; transform: translate(-50%, -50%);"
+			class="btn btn-error btn-sm absolute min-h-10 min-w-10 rounded-full p-0 text-lg font-bold shadow-md {controlsEnabled ? 'pointer-events-auto' : 'pointer-events-none opacity-50'}"
+			style="left: {(canvasPadPx + r.x + r.w - 22) * previewScale}px; top: {(canvasPadPx + r.y + 22) * previewScale}px; width: {del.width}px; height: {del.height}px; transform: translate(-50%, -50%);"
 			aria-label={labels.delete}
+			disabled={!controlsEnabled}
 			on:click|stopPropagation={onRemove}
 		>
 			×
@@ -58,9 +60,10 @@
 			{@const b = overlayCenter(r.x + 20, r.y + r.h / 2, 40, 44)}
 			<button
 				type="button"
-				class="btn btn-primary btn-sm pointer-events-auto absolute min-h-11 min-w-11 p-0 text-xl"
+				class="btn btn-primary btn-sm absolute min-h-11 min-w-11 p-0 text-xl {controlsEnabled ? 'pointer-events-auto' : 'pointer-events-none opacity-50'}"
 				style="left: {b.left}px; top: {b.top}px; width: {b.width}px; height: {b.height}px; transform: translate(-50%, -50%);"
 				aria-label={labels.shrinkWidth}
+				disabled={!controlsEnabled}
 				on:click|stopPropagation={() => onDeltaSpan(-1, 0)}
 			>
 				←
@@ -70,9 +73,10 @@
 			{@const b = overlayCenter(r.x + r.w - 20, r.y + r.h / 2, 40, 44)}
 			<button
 				type="button"
-				class="btn btn-primary btn-sm pointer-events-auto absolute min-h-11 min-w-11 p-0 text-xl"
+				class="btn btn-primary btn-sm absolute min-h-11 min-w-11 p-0 text-xl {controlsEnabled ? 'pointer-events-auto' : 'pointer-events-none opacity-50'}"
 				style="left: {b.left}px; top: {b.top}px; width: {b.width}px; height: {b.height}px; transform: translate(-50%, -50%);"
 				aria-label={labels.expandWidth}
+				disabled={!controlsEnabled}
 				on:click|stopPropagation={() => onDeltaSpan(1, 0)}
 			>
 				→
@@ -82,9 +86,10 @@
 			{@const b = overlayCenter(r.x + r.w / 2, r.y + 22, 44, 40)}
 			<button
 				type="button"
-				class="btn btn-primary btn-sm pointer-events-auto absolute min-h-10 min-w-12 p-0 text-xl"
+				class="btn btn-primary btn-sm absolute min-h-10 min-w-12 p-0 text-xl {controlsEnabled ? 'pointer-events-auto' : 'pointer-events-none opacity-50'}"
 				style="left: {b.left}px; top: {b.top}px; width: {b.width}px; height: {b.height}px; transform: translate(-50%, -50%);"
 				aria-label={labels.shrinkHeight}
+				disabled={!controlsEnabled}
 				on:click|stopPropagation={() => onDeltaSpan(0, -1)}
 			>
 				↑
@@ -94,9 +99,10 @@
 			{@const b = overlayCenter(r.x + r.w / 2, r.y + r.h - 22, 44, 40)}
 			<button
 				type="button"
-				class="btn btn-primary btn-sm pointer-events-auto absolute min-h-10 min-w-12 p-0 text-xl"
+				class="btn btn-primary btn-sm absolute min-h-10 min-w-12 p-0 text-xl {controlsEnabled ? 'pointer-events-auto' : 'pointer-events-none opacity-50'}"
 				style="left: {b.left}px; top: {b.top}px; width: {b.width}px; height: {b.height}px; transform: translate(-50%, -50%);"
 				aria-label={labels.expandHeight}
+				disabled={!controlsEnabled}
 				on:click|stopPropagation={() => onDeltaSpan(0, 1)}
 			>
 				↓

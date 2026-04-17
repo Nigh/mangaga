@@ -3,6 +3,11 @@ export type MangagaLocale = "zh" | "en"
 export type MangagaI18n = {
 	subtitle: string
 	switchLanguage: string
+	reorderModeLabel: string
+	reorderModeHintOn: string
+	reorderModeHintOff: string
+	reorderModeOn: string
+	reorderModeOff: string
 	addImages: string
 	clearAll: string
 	touchHint: string
@@ -32,9 +37,15 @@ export const MANGAGA_I18N: Record<MangagaLocale, MangagaI18n> = {
 	zh: {
 		subtitle: "一个简单的漫画拼图工具",
 		switchLanguage: "English",
+		reorderModeLabel: "排序模式",
+		reorderModeHintOn: "开",
+		reorderModeHintOff: "关",
+		reorderModeOn: "开启排序模式",
+		reorderModeOff: "关闭排序模式",
 		addImages: "添加图片",
 		clearAll: "清空",
-		touchHint: "移动端：未选中时短按选中；选中后长按选中图片可拖动。",
+		touchHint:
+			"移动端：未选中短按选中；选中后长按可拖动。也可开启“排序模式”直接拖动。",
 		panelStyleAndExport: "样式与导出",
 		gridCols: "列数 (1-4)",
 		canvasBgColor: "全图背景色",
@@ -59,10 +70,15 @@ export const MANGAGA_I18N: Record<MangagaLocale, MangagaI18n> = {
 	en: {
 		subtitle: "A simple comic layout tool",
 		switchLanguage: "中文",
+		reorderModeLabel: "Reorder Mode",
+		reorderModeHintOn: "ON",
+		reorderModeHintOff: "OFF",
+		reorderModeOn: "Enable Reorder Mode",
+		reorderModeOff: "Disable Reorder Mode",
 		addImages: "Add Images",
 		clearAll: "Clear",
 		touchHint:
-			"Mobile: tap to select when nothing is selected; long-press selected image to drag.",
+			"Mobile: tap to select when none selected; long-press selected image to drag. You can also enable Reorder Mode for direct drag.",
 		panelStyleAndExport: "Style & Export",
 		gridCols: "Columns (1-4)",
 		canvasBgColor: "Canvas Background",

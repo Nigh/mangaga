@@ -21,6 +21,7 @@
 
 	let gridCols = 2
 	let gridRows = 2
+	const defaultEmptyRows = 2
 
 	/** 相对「格最长边」基准的百分比，范围 0–30；四边同一数值 */
 	let canvasPaddingPct = 2
@@ -51,9 +52,15 @@
 	let dragInnerX = 0
 	let dragInnerY = 0
 
-	const touchLongPressMs = 420
-	const touchMoveTolerancePx = 10
+	const touchLongPressMs = 360
+	const touchMoveTolerancePx = 18
+	const overlayTouchGuardMs = 320
 	let touchDragMode = false
+	let touchHoldDragCandidate = false
+	let reorderMode = false
+	let overlayControlsEnabled = true
+	let overlayTouchGuardTimer: ReturnType<typeof setTimeout> | null = null
+	let reorderJiggleRaf = 0
 	let locale: MangagaLocale = "zh"
 	let touchLongPressTimer: ReturnType<typeof setTimeout> | null = null
 	let pendingTouchGesture: {
@@ -164,9 +171,9 @@
 	}
 
 	function syncRowsFromPanels() {
-		let maxR = 2
-		for (const p of panels) maxR = Math.max(maxR, p.row + p.rowSpan)
-		if (gridRows < maxR) gridRows = maxR
+		const usedRows = panels.reduce((m, p) => Math.max(m, p.row + p.rowSpan), 0)
+		const minRows = panels.length ? 1 : defaultEmptyRows
+		gridRows = Math.max(minRows, usedRows)
 	}
 
 	function findFreeSlot(cs: number, rs: number): { col: number; row: number } | null {
@@ -231,7 +238,7 @@
 		return { x: l.x - canvasPadPx, y: l.y - canvasPadPx }
 	}
 
-	function drawPreview() {
+	function drawPreview(nowMs = 0) {
 		if (!canvasEl || typeof designOuterW !== "number") return
 		const ctx = canvasEl.getContext("2d")
 		if (!ctx) return
@@ -253,6 +260,12 @@
 		ctx.save()
 		ctx.translate(canvasPadPx, canvasPadPx)
 
+		const tSec =
+			nowMs > 0
+				? nowMs / 1000
+				: typeof performance !== "undefined"
+					? performance.now() / 1000
+					: Date.now() / 1000
 		for (const p of panels) {
 			const img = imgMap.get(p.id) ?? null
 			const r = panelOuterRect(p, layout)
@@ -260,6 +273,24 @@
 				drawPanel(ctx, p, layout, img, panelPadPx, borderPx, panelBorderColor, 0.2)
 				const rr = { x: dragInnerX, y: dragInnerY, w: r.w, h: r.h }
 				drawPanelInRect(ctx, rr, img, panelPadPx, borderPx, panelBorderColor, 1)
+			} else if (reorderMode) {
+				const jm = panelJiggleMotion(p.id)
+				const angle = Math.sin(tSec * jm.angleFreq + jm.anglePhase) * 0.0065
+				const dx = Math.sin(tSec * jm.xFreq + jm.xPhase) * (0.75 / previewScale) * jm.xSign
+				const dy = Math.cos(tSec * jm.yFreq + jm.yPhase) * (0.5 / previewScale) * jm.ySign
+				ctx.save()
+				ctx.translate(r.x + r.w / 2 + dx, r.y + r.h / 2 + dy)
+				ctx.rotate(angle)
+				drawPanelInRect(
+					ctx,
+					{ x: -r.w / 2, y: -r.h / 2, w: r.w, h: r.h },
+					img,
+					panelPadPx,
+					borderPx,
+					panelBorderColor,
+					1,
+				)
+				ctx.restore()
 			} else {
 				drawPanel(ctx, p, layout, img, panelPadPx, borderPx, panelBorderColor, 1)
 			}
@@ -282,6 +313,26 @@
 		await tick()
 		await loadAllImages()
 		drawPreview()
+	}
+
+	function stopReorderJiggleLoop() {
+		if (!reorderJiggleRaf || typeof window === "undefined") return
+		window.cancelAnimationFrame(reorderJiggleRaf)
+		reorderJiggleRaf = 0
+	}
+
+	function runReorderJiggleLoop(nowMs: number) {
+		if (!reorderMode || typeof window === "undefined") {
+			reorderJiggleRaf = 0
+			return
+		}
+		drawPreview(nowMs)
+		reorderJiggleRaf = window.requestAnimationFrame(runReorderJiggleLoop)
+	}
+
+	function ensureReorderJiggleLoop() {
+		if (!reorderMode || reorderJiggleRaf || typeof window === "undefined") return
+		reorderJiggleRaf = window.requestAnimationFrame(runReorderJiggleLoop)
 	}
 
 	$: {
@@ -309,6 +360,11 @@
 		gapPx
 		previewContainerW
 		void scheduleDraw()
+	}
+	$: {
+		reorderMode
+		if (reorderMode) ensureReorderJiggleLoop()
+		else stopReorderJiggleLoop()
 	}
 
 	async function onPickFiles(e: Event) {
@@ -373,7 +429,7 @@
 		}
 		panels = []
 		selectedId = null
-		gridRows = 2
+		gridRows = defaultEmptyRows
 	}
 
 	/** 列数变少等情况下按阅读顺序重新装箱，避免格重叠 */
@@ -534,9 +590,51 @@
 		touchLongPressTimer = null
 	}
 
+	function clearOverlayTouchGuardTimer() {
+		if (!overlayTouchGuardTimer) return
+		clearTimeout(overlayTouchGuardTimer)
+		overlayTouchGuardTimer = null
+	}
+
+	function armOverlayTouchGuard() {
+		overlayControlsEnabled = false
+		clearOverlayTouchGuardTimer()
+		overlayTouchGuardTimer = setTimeout(() => {
+			overlayControlsEnabled = true
+			overlayTouchGuardTimer = null
+		}, overlayTouchGuardMs)
+	}
+
+	function panelJiggleSeed(id: string): number {
+		let h = 0
+		for (let i = 0; i < id.length; i++) {
+			h = (h << 5) - h + id.charCodeAt(i)
+			h |= 0
+		}
+		return Math.abs(h % 997) / 997
+	}
+
+function panelJiggleMotion(id: string) {
+	const s1 = panelJiggleSeed(id)
+	const s2 = panelJiggleSeed(`${id}:x`)
+	const s3 = panelJiggleSeed(`${id}:y`)
+	const s4 = panelJiggleSeed(`${id}:r`)
+	return {
+		angleFreq: 6.5 + s1 * 4.5,
+		xFreq: 8.5 + s2 * 5.5,
+		yFreq: 7.2 + s3 * 5.3,
+		anglePhase: s2 * Math.PI * 2,
+		xPhase: s3 * Math.PI * 2,
+		yPhase: s4 * Math.PI * 2,
+		xSign: s1 > 0.5 ? 1 : -1,
+		ySign: s2 > 0.5 ? 1 : -1,
+	}
+}
+
 	function clearPendingTouchGesture() {
 		clearTouchLongPressTimer()
 		pendingTouchGesture = null
+		touchHoldDragCandidate = false
 	}
 
 	function beginDrag(pointerId: number, panel: Panel, inner: { x: number; y: number }) {
@@ -553,9 +651,24 @@
 		if (!canvasEl) return
 		const inner = innerFromEvent(e)
 		const p = hitPanelAt(inner)
+
+		if (reorderMode && e.pointerType === "touch") {
+			clearPendingTouchGesture()
+			if (!p) {
+				selectedId = null
+				return
+			}
+			selectedId = p.id
+			beginDrag(e.pointerId, p, inner)
+			touchDragMode = true
+			e.preventDefault()
+			return
+		}
+
 		if (e.pointerType === "touch") {
 			clearPendingTouchGesture()
 			const r = p ? panelOuterRect(p, layout) : null
+			touchHoldDragCandidate = !!(selectedId && p && p.id === selectedId)
 			pendingTouchGesture = {
 				pointerId: e.pointerId,
 				targetPanelId: p?.id ?? null,
@@ -572,6 +685,7 @@
 
 				if (pendingTouchGesture.selectedAtDown == null) {
 					selectedId = null
+					armOverlayTouchGuard()
 					return
 				}
 
@@ -637,13 +751,16 @@
 					if (pending.selectedAtDown == null) {
 						if (targetPanelId) {
 							selectedId = targetPanelId
+							armOverlayTouchGuard()
 						} else {
 							selectedId = null
 						}
 					} else if (targetPanelId && targetPanelId !== pending.selectedAtDown) {
 						selectedId = targetPanelId
+						armOverlayTouchGuard()
 					} else {
 						selectedId = null
+						armOverlayTouchGuard()
 					}
 				}
 			}
@@ -671,6 +788,15 @@
 		const ncs = Math.max(1, p.colSpan + dCol)
 		const nrs = Math.max(1, p.rowSpan + dRow)
 		if (ncs === p.colSpan && nrs === p.rowSpan) return
+		if (dRow > 0 && p.row + nrs > gridRows) {
+			// 当底部没有空白行时，允许最底行向下扩展并补一行。
+			const maxUsedRow = panels.reduce((m, x) => Math.max(m, x.row + x.rowSpan), 0)
+			const hasBottomBlankRows = gridRows > maxUsedRow
+			const isPanelAtBottom = p.row + p.rowSpan >= gridRows
+			if (!hasBottomBlankRows && isPanelAtBottom) {
+				gridRows = p.row + nrs
+			}
+		}
 		if (canPlace(p.col, p.row, ncs, nrs, p.id)) {
 			p.colSpan = ncs
 			p.rowSpan = nrs
@@ -687,7 +813,11 @@
 		return canPlace(p.col, p.row, p.colSpan - 1, p.rowSpan, p.id)
 	}
 	function canExpandH(p: Panel) {
-		return canPlace(p.col, p.row, p.colSpan, p.rowSpan + 1, p.id)
+		if (canPlace(p.col, p.row, p.colSpan, p.rowSpan + 1, p.id)) return true
+		const maxUsedRow = panels.reduce((m, x) => Math.max(m, x.row + x.rowSpan), 0)
+		const hasBottomBlankRows = gridRows > maxUsedRow
+		const isPanelAtBottom = p.row + p.rowSpan >= gridRows
+		return !hasBottomBlankRows && isPanelAtBottom
 	}
 	function canShrinkH(p: Panel) {
 		if (p.rowSpan <= 1) return false
@@ -709,6 +839,21 @@
 	function onSelectedDeltaSpan(dCol: number, dRow: number) {
 		if (!selectedId) return
 		tryDeltaSpan(selectedId, dCol, dRow)
+	}
+
+	function setReorderMode(next: boolean) {
+		reorderMode = next
+		if (!reorderMode) {
+			stopReorderJiggleLoop()
+			touchDragMode = false
+			touchHoldDragCandidate = false
+			drawPreview()
+		}
+	}
+
+	function onReorderModeChange(e: Event) {
+		const input = e.currentTarget as HTMLInputElement | null
+		setReorderMode(Boolean(input?.checked))
 	}
 
 	async function exportPng() {
@@ -790,6 +935,8 @@
 			document.removeEventListener("pointerdown", onDocumentPointerDown, true)
 		}
 		clearPendingTouchGesture()
+		clearOverlayTouchGuardTimer()
+		stopReorderJiggleLoop()
 		ro?.disconnect()
 		for (const p of panels) {
 			URL.revokeObjectURL(p.src)
@@ -800,7 +947,7 @@
 
 <div class="text-base-content mx-auto flex w-full max-w-3xl flex-col gap-6 px-4 pb-24 pt-8 md:max-w-4xl md:gap-8 md:px-6">
 	<header class="text-center">
-		<div class="mb-3 flex justify-end">
+		<div class="mb-3 flex flex-wrap justify-end gap-2">
 			<button
 				type="button"
 				class="btn btn-sm btn-outline"
@@ -840,17 +987,29 @@
 			</div>
 
 			<p class="text-base-content/70 text-sm leading-relaxed md:text-base">{t.touchHint}</p>
+			<div class="bg-base-200/70 border-base-300 flex items-center justify-between rounded-xl border px-3 py-2 md:px-4">
+				<div class="text-sm font-medium md:text-base">{t.reorderModeLabel}</div>
+				<div class="flex items-center gap-2">
+					<span class="text-xs font-semibold uppercase">{reorderMode ? t.reorderModeHintOn : t.reorderModeHintOff}</span>
+					<input
+						type="checkbox"
+						class="toggle toggle-primary toggle-lg"
+						bind:checked={reorderMode}
+						on:change={onReorderModeChange}
+					/>
+				</div>
+			</div>
 
 			<ComicCanvasStage
 				bind:previewWrapEl
 				bind:canvasEl
 				{displayW}
-				useTouchDragMode={touchDragMode || dragId != null}
+				useTouchDragMode={reorderMode || touchDragMode || dragId != null || touchHoldDragCandidate}
 				{onCanvasPointerDown}
 				{onCanvasPointerMove}
 				{onCanvasPointerUp}
 			>
-				{#if selectedPanel && !dragId}
+				{#if selectedPanel && !dragId && !reorderMode}
 					<ComicSelectionOverlay
 						layout={layout}
 						{previewScale}
@@ -860,6 +1019,7 @@
 						canExpandW={selectedCanExpandW}
 						canShrinkH={selectedCanShrinkH}
 						canExpandH={selectedCanExpandH}
+						controlsEnabled={overlayControlsEnabled}
 						labels={t}
 						onRemove={() => removePanel(selectedPanel.id)}
 						onDeltaSpan={onSelectedDeltaSpan}
