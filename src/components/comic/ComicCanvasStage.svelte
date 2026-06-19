@@ -13,10 +13,10 @@
 
 <div
 	bind:this={previewWrapEl}
-	class="bg-base-300/40 border-base-300 w-full max-w-full overflow-auto rounded-2xl border-2 p-2 md:p-3"
+	class="bg-base-300/40 border-base-300 flex w-full max-w-full justify-center overflow-auto rounded-2xl border-2 p-2 md:p-3"
 	style="max-height: {maxHeight};"
 >
-	<div class="relative mx-auto inline-block max-w-full" style="width: {displayW}px; min-width: min(100%, {displayW}px);">
+	<div class="relative block max-w-full" style="width: {displayW}px; min-width: min(100%, {displayW}px);">
 		<canvas
 			bind:this={canvasEl}
 			class="bg-base-100 block max-w-full"
