@@ -9,11 +9,8 @@
 	} from "../lib/mangaLayout"
 	import { drawPanel, drawPanelInRect } from "../lib/mangaDraw"
 	import { percentStepForMaxEdge } from "../lib/mangaPctStep"
-	import {
-		MANGAGA_I18N,
-		detectInitialLocale,
-		type MangagaLocale,
-	} from "../lib/mangagaI18n"
+	import { MANGAGA_I18N, type MangagaLocale } from "../lib/mangagaI18n"
+	import { locale } from "../lib/stores/locale"
 	import type { MangaPanel as Panel } from "../lib/mangagaTypes"
 	import ComicCanvasStage from "./comic/ComicCanvasStage.svelte"
 	import ComicSelectionOverlay from "./comic/ComicSelectionOverlay.svelte"
@@ -61,7 +58,7 @@
 	let overlayControlsEnabled = true
 	let overlayTouchGuardTimer: ReturnType<typeof setTimeout> | null = null
 	let reorderJiggleRaf = 0
-	let locale: MangagaLocale = "zh"
+	let currentLocale: MangagaLocale = "zh"
 	let touchLongPressTimer: ReturnType<typeof setTimeout> | null = null
 	let pendingTouchGesture: {
 		pointerId: number
@@ -112,7 +109,7 @@
 	$: selectedCanExpandW = selectedPanel ? canExpandW(selectedPanel) : false
 	$: selectedCanShrinkH = selectedPanel ? canShrinkH(selectedPanel) : false
 	$: selectedCanExpandH = selectedPanel ? canExpandH(selectedPanel) : false
-	$: t = MANGAGA_I18N[locale]
+	$: t = MANGAGA_I18N[currentLocale]
 
 	let ro: ResizeObserver
 
@@ -916,7 +913,9 @@ function panelJiggleMotion(id: string) {
 	}
 
 	onMount(() => {
-		locale = detectInitialLocale()
+		const unsubscribe = locale.subscribe((l) => {
+			currentLocale = l
+		})
 		if (typeof document !== "undefined") {
 			document.addEventListener("pointerdown", onDocumentPointerDown, true)
 		}
@@ -928,6 +927,7 @@ function panelJiggleMotion(id: string) {
 			ro.observe(el)
 			previewContainerW = el.clientWidth
 		}
+		return unsubscribe
 	})
 
 	onDestroy(() => {
@@ -945,23 +945,7 @@ function panelJiggleMotion(id: string) {
 	})
 </script>
 
-<div class="text-base-content mx-auto flex w-full max-w-3xl flex-col gap-6 px-4 pb-24 pt-8 md:max-w-4xl md:gap-8 md:px-6">
-	<header class="text-center">
-		<div class="mb-3 flex flex-wrap justify-end gap-2">
-			<button
-				type="button"
-				class="btn btn-sm btn-outline"
-				on:click={() => {
-					locale = locale === "zh" ? "en" : "zh"
-				}}
-			>
-				{t.switchLanguage}
-			</button>
-		</div>
-		<h1 class="text-primary text-4xl font-bold tracking-tight md:text-5xl">Mangaga</h1>
-		<p class="text-base-content/75 mt-2 text-base md:text-lg">{t.subtitle}</p>
-	</header>
-
+<div class="text-base-content mx-auto flex w-full max-w-3xl flex-col gap-6 px-4 pb-24 pt-4 md:max-w-4xl md:gap-8 md:px-6">
 	{#if message}
 		<div class="alert alert-warning text-base shadow-md">{message}</div>
 	{/if}

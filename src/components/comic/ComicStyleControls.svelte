@@ -43,200 +43,135 @@
 		logicSizeLabel: (w: number, h: number, edge: number) =>
 			`Logical size ${w} × ${h} px; base edge ${edge} px`,
 	}
+
+	function makeStepper(
+		getter: () => number,
+		setter: (v: number) => void,
+		min: number,
+		max: number,
+	) {
+		return {
+			get value() { return getter() },
+			step(d: number) { setter(numStep(getter(), min, max, pctStep, d)) },
+		}
+	}
+
+	$: padCtrl = makeStepper(() => canvasPaddingPct, (v) => (canvasPaddingPct = v), 0, 30)
+	$: gapCtrl = makeStepper(() => cellGapPct, (v) => (cellGapPct = v), 0, 30)
+	$: imgPadCtrl = makeStepper(() => panelPaddingPct, (v) => (panelPaddingPct = v), 0, 30)
+	$: imgBorderCtrl = makeStepper(() => panelBorderPct, (v) => (panelBorderPct = v), 0, 30)
 </script>
 
 <div class="divider my-0 text-sm font-medium">{labels.panelStyleAndExport}</div>
 
-<div class="flex flex-col gap-5">
-	<div class="form-control gap-2">
-		<span class="label-text text-sm font-medium md:text-base">{labels.gridCols}</span>
-		<div class="flex items-center gap-2">
-			<button
-				type="button"
-				class="btn btn-lg min-h-14 min-w-14 shrink-0 text-xl"
-				on:click={() => {
-					gridCols = numStep(gridCols, 1, 4, 1, -1)
-					onClampGridCols()
-				}}
-			>
-				−
-			</button>
-			<input
-				type="number"
-				min="1"
-				max="4"
-				class="input input-bordered input-lg min-h-14 flex-1 text-center text-lg"
-				bind:value={gridCols}
-				on:change={onClampGridCols}
-			/>
-			<button
-				type="button"
-				class="btn btn-lg min-h-14 min-w-14 shrink-0 text-xl"
-				on:click={() => {
-					gridCols = numStep(gridCols, 1, 4, 1, 1)
-					onClampGridCols()
-				}}
-			>
-				+
-			</button>
-		</div>
-	</div>
-
-	<label class="form-control gap-2">
-		<span class="label-text text-sm font-medium md:text-base">{labels.canvasBgColor}</span>
-		<input type="color" bind:value={canvasBgColor} class="input input-bordered h-14 w-full min-h-14" />
-	</label>
-
-	<div class="form-control gap-2">
-		<span class="label-text text-sm font-medium md:text-base">{labels.canvasPadding}</span>
-		<div class="flex items-center gap-2">
-			<button
-				type="button"
-				class="btn btn-lg min-h-14 min-w-14 shrink-0 text-xl"
-				on:click={() => (canvasPaddingPct = numStep(canvasPaddingPct, 0, 30, pctStep, -1))}
-			>
-				−
-			</button>
-			<div class="join flex min-h-14 flex-1">
-				<input
-					type="number"
-					min="0"
-					max="30"
-					step={pctStep}
-					class="input input-bordered join-item min-h-14 flex-1 text-center text-lg"
-					bind:value={canvasPaddingPct}
-				/>
-				<span class="btn btn-outline join-item border-base-300 text-base-content/80 pointer-events-none min-h-14 min-w-11 px-2 text-lg font-medium">%</span>
-			</div>
-			<button
-				type="button"
-				class="btn btn-lg min-h-14 min-w-14 shrink-0 text-xl"
-				on:click={() => (canvasPaddingPct = numStep(canvasPaddingPct, 0, 30, pctStep, 1))}
-			>
-				+
-			</button>
-		</div>
-		<p class="text-base-content/60 text-xs">{labels.approxPx(canvasPadPx)}</p>
-	</div>
-
-	<div class="form-control gap-2">
-		<span class="label-text text-sm font-medium md:text-base">{labels.cellGap}</span>
-		<div class="flex items-center gap-2">
-			<button
-				type="button"
-				class="btn btn-lg min-h-14 min-w-14 shrink-0 text-xl"
-				on:click={() => (cellGapPct = numStep(cellGapPct, 0, 30, pctStep, -1))}
-			>
-				−
-			</button>
-			<div class="join flex min-h-14 flex-1">
-				<input
-					type="number"
-					min="0"
-					max="30"
-					step={pctStep}
-					class="input input-bordered join-item min-h-14 flex-1 text-center text-lg"
-					bind:value={cellGapPct}
-				/>
-				<span class="btn btn-outline join-item border-base-300 text-base-content/80 pointer-events-none min-h-14 min-w-11 px-2 text-lg font-medium">%</span>
-			</div>
-			<button
-				type="button"
-				class="btn btn-lg min-h-14 min-w-14 shrink-0 text-xl"
-				on:click={() => (cellGapPct = numStep(cellGapPct, 0, 30, pctStep, 1))}
-			>
-				+
-			</button>
-		</div>
-		<p class="text-base-content/60 text-xs">{labels.approxPx(gapPx)}</p>
-	</div>
-
-	<div class="form-control gap-2">
-		<span class="label-text text-sm font-medium md:text-base">{labels.panelPadding}</span>
-		<div class="flex items-center gap-2">
-			<button
-				type="button"
-				class="btn btn-lg min-h-14 min-w-14 shrink-0 text-xl"
-				on:click={() => (panelPaddingPct = numStep(panelPaddingPct, 0, 30, pctStep, -1))}
-			>
-				−
-			</button>
-			<div class="join flex min-h-14 flex-1">
-				<input
-					type="number"
-					min="0"
-					max="30"
-					step={pctStep}
-					class="input input-bordered join-item min-h-14 flex-1 text-center text-lg"
-					bind:value={panelPaddingPct}
-				/>
-				<span class="btn btn-outline join-item border-base-300 text-base-content/80 pointer-events-none min-h-14 min-w-11 px-2 text-lg font-medium">%</span>
-			</div>
-			<button
-				type="button"
-				class="btn btn-lg min-h-14 min-w-14 shrink-0 text-xl"
-				on:click={() => (panelPaddingPct = numStep(panelPaddingPct, 0, 30, pctStep, 1))}
-			>
-				+
-			</button>
-		</div>
-		<p class="text-base-content/60 text-xs">{labels.approxPx(panelPadPx)}</p>
-	</div>
-
-	<div class="form-control gap-2">
-		<span class="label-text text-sm font-medium md:text-base">{labels.panelBorder}</span>
-		<div class="flex items-center gap-2">
-			<button
-				type="button"
-				class="btn btn-lg min-h-14 min-w-14 shrink-0 text-xl"
-				on:click={() => (panelBorderPct = numStep(panelBorderPct, 0, 30, pctStep, -1))}
-			>
-				−
-			</button>
-			<div class="join flex min-h-14 flex-1">
-				<input
-					type="number"
-					min="0"
-					max="30"
-					step={pctStep}
-					class="input input-bordered join-item min-h-14 flex-1 text-center text-lg"
-					bind:value={panelBorderPct}
-				/>
-				<span class="btn btn-outline join-item border-base-300 text-base-content/80 pointer-events-none min-h-14 min-w-11 px-2 text-lg font-medium">%</span>
-			</div>
-			<button
-				type="button"
-				class="btn btn-lg min-h-14 min-w-14 shrink-0 text-xl"
-				on:click={() => (panelBorderPct = numStep(panelBorderPct, 0, 30, pctStep, 1))}
-			>
-				+
-			</button>
-		</div>
-		<p class="text-base-content/60 text-xs">{labels.approxPx(borderPx)}</p>
-	</div>
-
-	<label class="form-control gap-2">
-		<span class="label-text text-sm font-medium md:text-base">{labels.panelBorderColor}</span>
-		<input type="color" bind:value={panelBorderColor} class="input input-bordered h-14 w-full min-h-14" />
-	</label>
-
-	<div class="form-control gap-2">
-		<span class="label-text text-sm font-medium md:text-base">{labels.exportScaleLabel(exportPixelW, exportPixelH)}</span>
-		<div class="flex flex-wrap items-center gap-3">
-			{#each [1, 0.75, 0.5, 0.25] as r}
+<div class="flex flex-col gap-3">
+	<div class="bg-base-200 rounded p-3">
+		<span class="mb-2 block text-xs font-medium">{labels.gridCols}</span>
+		<div class="flex gap-2">
+			{#each [1, 2, 3, 4] as c}
 				<button
 					type="button"
-					class="btn btn-lg min-h-12 flex-1 sm:flex-none {exportOutputScale === r ? 'btn-primary' : 'btn-outline'}"
-					on:click={() => (exportOutputScale = r)}
+					class="btn btn-sm min-h-10 flex-1 {gridCols === c ? 'btn-primary' : 'btn-outline'}"
+					on:click={() => { gridCols = c; onClampGridCols() }}
 				>
-					{Math.round(r * 100)}%
+					{c}
 				</button>
 			{/each}
-			<button type="button" class="btn btn-primary btn-lg min-h-12 px-6 text-lg" on:click={onExportPng}>
+		</div>
+	</div>
+
+	<div class="grid grid-cols-2 gap-3">
+		<div class="bg-base-200 rounded p-3">
+			<span class="mb-2 block text-xs font-medium">{labels.canvasBgColor}</span>
+			<input type="color" bind:value={canvasBgColor} class="input input-bordered min-h-10 w-full" />
+		</div>
+		<div class="bg-base-200 rounded p-3">
+			<span class="mb-2 block text-xs font-medium">{labels.panelBorderColor}</span>
+			<input type="color" bind:value={panelBorderColor} class="input input-bordered min-h-10 w-full" />
+		</div>
+	</div>
+
+	<div class="grid grid-cols-2 gap-3">
+		<div class="bg-base-200 rounded p-3">
+			<div class="mb-2 flex items-center justify-between">
+				<span class="text-xs font-medium">{labels.canvasPadding}</span>
+				<span class="text-base-content/60 text-xs">{labels.approxPx(canvasPadPx)}</span>
+			</div>
+			<div class="flex items-center gap-1">
+				<button type="button" class="btn btn-outline btn-sm min-h-10 min-w-10 text-lg" on:click={() => padCtrl.step(-1)}>−</button>
+				<div class="join flex min-h-10 flex-1">
+					<input type="number" min="0" max="30" step={pctStep} class="input input-bordered join-item min-h-10 flex-1 text-center" bind:value={canvasPaddingPct} />
+					<span class="btn btn-outline join-item border-base-300 pointer-events-none min-h-10 px-2 text-xs">%</span>
+				</div>
+				<button type="button" class="btn btn-outline btn-sm min-h-10 min-w-10 text-lg" on:click={() => padCtrl.step(1)}>+</button>
+			</div>
+		</div>
+
+		<div class="bg-base-200 rounded p-3">
+			<div class="mb-2 flex items-center justify-between">
+				<span class="text-xs font-medium">{labels.cellGap}</span>
+				<span class="text-base-content/60 text-xs">{labels.approxPx(gapPx)}</span>
+			</div>
+			<div class="flex items-center gap-1">
+				<button type="button" class="btn btn-outline btn-sm min-h-10 min-w-10 text-lg" on:click={() => gapCtrl.step(-1)}>−</button>
+				<div class="join flex min-h-10 flex-1">
+					<input type="number" min="0" max="30" step={pctStep} class="input input-bordered join-item min-h-10 flex-1 text-center" bind:value={cellGapPct} />
+					<span class="btn btn-outline join-item border-base-300 pointer-events-none min-h-10 px-2 text-xs">%</span>
+				</div>
+				<button type="button" class="btn btn-outline btn-sm min-h-10 min-w-10 text-lg" on:click={() => gapCtrl.step(1)}>+</button>
+			</div>
+		</div>
+
+		<div class="bg-base-200 rounded p-3">
+			<div class="mb-2 flex items-center justify-between">
+				<span class="text-xs font-medium">{labels.panelPadding}</span>
+				<span class="text-base-content/60 text-xs">{labels.approxPx(panelPadPx)}</span>
+			</div>
+			<div class="flex items-center gap-1">
+				<button type="button" class="btn btn-outline btn-sm min-h-10 min-w-10 text-lg" on:click={() => imgPadCtrl.step(-1)}>−</button>
+				<div class="join flex min-h-10 flex-1">
+					<input type="number" min="0" max="30" step={pctStep} class="input input-bordered join-item min-h-10 flex-1 text-center" bind:value={panelPaddingPct} />
+					<span class="btn btn-outline join-item border-base-300 pointer-events-none min-h-10 px-2 text-xs">%</span>
+				</div>
+				<button type="button" class="btn btn-outline btn-sm min-h-10 min-w-10 text-lg" on:click={() => imgPadCtrl.step(1)}>+</button>
+			</div>
+		</div>
+
+		<div class="bg-base-200 rounded p-3">
+			<div class="mb-2 flex items-center justify-between">
+				<span class="text-xs font-medium">{labels.panelBorder}</span>
+				<span class="text-base-content/60 text-xs">{labels.approxPx(borderPx)}</span>
+			</div>
+			<div class="flex items-center gap-1">
+				<button type="button" class="btn btn-outline btn-sm min-h-10 min-w-10 text-lg" on:click={() => imgBorderCtrl.step(-1)}>−</button>
+				<div class="join flex min-h-10 flex-1">
+					<input type="number" min="0" max="30" step={pctStep} class="input input-bordered join-item min-h-10 flex-1 text-center" bind:value={panelBorderPct} />
+					<span class="btn btn-outline join-item border-base-300 pointer-events-none min-h-10 px-2 text-xs">%</span>
+				</div>
+				<button type="button" class="btn btn-outline btn-sm min-h-10 min-w-10 text-lg" on:click={() => imgBorderCtrl.step(1)}>+</button>
+			</div>
+		</div>
+	</div>
+
+	<div class="bg-base-200 rounded p-3">
+		<span class="mb-2 block text-xs font-medium">{labels.exportScaleLabel(exportPixelW, exportPixelH)}</span>
+		<div class="flex flex-wrap items-center gap-2">
+			<div class="flex w-full gap-2">
+				{#each [1, 0.75, 0.5, 0.25] as r}
+					<button
+						type="button"
+						class="btn btn-sm btn-ghost min-h-10 flex-1 border {exportOutputScale === r ? 'btn-active border-primary' : 'border-base-300'}"
+						on:click={() => (exportOutputScale = r)}
+					>
+						{Math.round(r * 100)}%
+					</button>
+				{/each}
+			</div>
+			<button type="button" class="btn btn-primary btn-sm min-h-10 w-full text-base font-semibold" on:click={onExportPng}>
 				{labels.exportPng}
 			</button>
 		</div>
-		<p class="text-base-content/60 text-sm">
+		<p class="text-base-content/60 mt-2 text-xs">
 			{labels.logicSizeLabel(
 				Math.round(designOuterW),
 				Math.round(designOuterH),
