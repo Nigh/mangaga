@@ -2,6 +2,13 @@ import type { GridLayout } from "./mangaLayout"
 import { panelOuterRect } from "./mangaLayout"
 import type { PanelLike } from "./mangaLayout"
 
+export function hexToRgba(hex: string, alpha: number): string {
+	const r = parseInt(hex.slice(1, 3), 16)
+	const g = parseInt(hex.slice(3, 5), 16)
+	const b = parseInt(hex.slice(5, 7), 16)
+	return `rgba(${r},${g},${b},${alpha})`
+}
+
 /** contain：完整显示图片，不裁切；内边距 + 描边宽度均从内容区扣除，避免描边压到图 */
 export function drawImageContain(
 	ctx: CanvasRenderingContext2D,

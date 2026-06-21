@@ -19,7 +19,11 @@ export type MangagaI18n = {
 	panelPadding: string
 	panelBorder: string
 	panelBorderColor: string
+	borderOpacity: string
 	exportPng: string
+	exportFormat: string
+	exportQuality: string
+	estimatedSize: string
 	delete: string
 	shrinkWidth: string
 	expandWidth: string
@@ -54,7 +58,11 @@ export const MANGAGA_I18N: Record<MangagaLocale, MangagaI18n> = {
 		panelPadding: "图片内边距",
 		panelBorder: "单格描边",
 		panelBorderColor: "单格描边颜色",
-		exportPng: "导出 PNG",
+		borderOpacity: "描边不透明度",
+		exportPng: "导出",
+		exportFormat: "导出格式",
+		exportQuality: "质量",
+		estimatedSize: "预估大小",
 		delete: "删除",
 		shrinkWidth: "减宽",
 		expandWidth: "加宽",
@@ -87,7 +95,11 @@ export const MANGAGA_I18N: Record<MangagaLocale, MangagaI18n> = {
 		panelPadding: "Image Padding",
 		panelBorder: "Panel Border",
 		panelBorderColor: "Panel Border Color",
-		exportPng: "Export PNG",
+		borderOpacity: "Border Opacity",
+		exportPng: "Export",
+		exportFormat: "Format",
+		exportQuality: "Quality",
+		estimatedSize: "Est. size",
 		delete: "Delete",
 		shrinkWidth: "Narrow",
 		expandWidth: "Widen",

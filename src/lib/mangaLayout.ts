@@ -103,8 +103,11 @@ export function computeGridTracks(
 	for (const p of panels) {
 		const nw = Math.max(1, p.nw)
 		const nh = Math.max(1, p.nh)
-		const perCol = Math.ceil(nw / Math.max(1, p.colSpan))
-		const perRow = Math.ceil(nh / Math.max(1, p.rowSpan))
+		const maxEdge = Math.max(nw, nh)
+		const normW = (nw / maxEdge) * 1000
+		const normH = (nh / maxEdge) * 1000
+		const perCol = Math.ceil(normW / Math.max(1, p.colSpan))
+		const perRow = Math.ceil(normH / Math.max(1, p.rowSpan))
 		for (let c = p.col; c < p.col + p.colSpan && c < gridCols; c++) {
 			colWidths[c] = Math.max(colWidths[c], perCol)
 		}
