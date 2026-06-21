@@ -217,7 +217,7 @@
 					<button
 						type="button"
 						class="btn btn-sm btn-ghost min-h-10 flex-1 border {exportFormat === mime ? 'btn-active border-primary' : 'border-base-300'}"
-						on:click={() => (exportFormat = mime)}
+						on:click={() => { exportFormat = mime; exportQuality = mime === "image/png" ? 100 : 85 }}
 					>
 						{label}
 					</button>

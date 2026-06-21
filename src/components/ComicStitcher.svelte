@@ -13,6 +13,7 @@
 	import { locale } from "../lib/stores/locale"
 	import type { MangaPanel as Panel } from "../lib/mangagaTypes"
 	import ComicCanvasStage from "./comic/ComicCanvasStage.svelte"
+	import ComicReorderOverlay from "./comic/ComicReorderOverlay.svelte"
 	import ComicSelectionOverlay from "./comic/ComicSelectionOverlay.svelte"
 	import ComicStyleControls from "./comic/ComicStyleControls.svelte"
 
@@ -33,7 +34,7 @@
 
 	let exportOutputScale = 1
 	let exportFormat: "image/png" | "image/jpeg" | "image/webp" = "image/png"
-	let exportQuality = 85
+	let exportQuality = 100
 
 	let panels: Panel[] = []
 	let estimatedSize: number | null = null
@@ -60,6 +61,14 @@
 	let touchDragMode = false
 	let touchHoldDragCandidate = false
 	let reorderMode = false
+	let reorderTouchPending: {
+		pointerId: number
+		panelId: string
+		startX: number
+		startY: number
+	} | null = null
+	const reorderTouchMoveThreshold = 8
+	let reorderMoveSuppressed = false
 	let overlayControlsEnabled = true
 	let overlayTouchGuardTimer: ReturnType<typeof setTimeout> | null = null
 	let reorderJiggleRaf = 0
@@ -114,6 +123,10 @@
 	$: selectedCanExpandW = selectedPanel ? canExpandW(selectedPanel) : false
 	$: selectedCanShrinkH = selectedPanel ? canShrinkH(selectedPanel) : false
 	$: selectedCanExpandH = selectedPanel ? canExpandH(selectedPanel) : false
+	$: reorderCanUp = selectedPanel && reorderMode ? canReorderMove(selectedPanel, 0, -1) : false
+	$: reorderCanDown = selectedPanel && reorderMode ? canReorderMove(selectedPanel, 0, 1) : false
+	$: reorderCanLeft = selectedPanel && reorderMode ? canReorderMove(selectedPanel, -1, 0) : false
+	$: reorderCanRight = selectedPanel && reorderMode ? canReorderMove(selectedPanel, 1, 0) : false
 	$: t = MANGAGA_I18N[currentLocale]
 
 	let ro: ResizeObserver
@@ -273,8 +286,9 @@
 		const reorderBorderRgba = borderPx > 0 ? borderRgba : "rgba(59,130,246,0.8)"
 		const reorderNumMap = new Map<string, number>()
 		if (reorderMode) {
-			const sorted = [...panels].sort((a, b) => a.row - b.row || a.col - b.col)
-			sorted.forEach((p, i) => reorderNumMap.set(p.id, i + 1))
+			for (const p of panels) {
+				reorderNumMap.set(p.id, p.row * gridCols + p.col + 1)
+			}
 		}
 		let dragPanel: (typeof panels)[number] | null = null
 		for (const p of panels) {
@@ -607,6 +621,27 @@
 		return false
 	}
 
+	function canReorderMove(p: Panel, dCol: number, dRow: number): boolean {
+		const nc = p.col + dCol
+		const nr = p.row + dRow
+		if (nc < 0 || nr < 0 || nc + p.colSpan > gridCols) return false
+		if (nr + p.rowSpan > gridRows) return false
+
+		if (canPlace(nc, nr, p.colSpan, p.rowSpan, p.id)) return true
+
+		const blockers = panels.filter(
+			(q) => q.id !== p.id && overlap(nc, nr, p.colSpan, p.rowSpan, q),
+		)
+		if (blockers.length !== 1) return false
+
+		const q = blockers[0]
+		const ign = new Set([p.id, q.id])
+		return (
+			canPlaceIgnoring(nc, nr, p.colSpan, p.rowSpan, ign) &&
+			canPlaceIgnoring(p.col, p.row, q.colSpan, q.rowSpan, ign)
+		)
+	}
+
 	function hitPanelAt(inner: { x: number; y: number }): Panel | null {
 		for (let i = panels.length - 1; i >= 0; i--) {
 			const p = panels[i]
@@ -688,6 +723,7 @@ function panelJiggleMotion(id: string) {
 
 	function onCanvasPointerDown(e: PointerEvent) {
 		if (!canvasEl) return
+		if (e.target !== canvasEl) return
 		const inner = innerFromEvent(e)
 		const p = hitPanelAt(inner)
 
@@ -695,11 +731,17 @@ function panelJiggleMotion(id: string) {
 			clearPendingTouchGesture()
 			if (!p) {
 				selectedId = null
+				reorderTouchPending = null
 				return
 			}
 			selectedId = p.id
-			beginDrag(e.pointerId, p, inner)
-			touchDragMode = true
+			if (reorderMode) reorderMoveSuppressed = true
+			reorderTouchPending = {
+				pointerId: e.pointerId,
+				panelId: p.id,
+				startX: e.clientX,
+				startY: e.clientY,
+			}
 			e.preventDefault()
 			return
 		}
@@ -760,6 +802,21 @@ function panelJiggleMotion(id: string) {
 	}
 
 	function onCanvasPointerMove(e: PointerEvent) {
+		if (reorderTouchPending && reorderTouchPending.pointerId === e.pointerId) {
+			const dx = e.clientX - reorderTouchPending.startX
+			const dy = e.clientY - reorderTouchPending.startY
+			if (Math.hypot(dx, dy) > reorderTouchMoveThreshold) {
+				const p = panels.find((x) => x.id === reorderTouchPending!.panelId)
+				if (p && canvasEl) {
+					const inner = innerFromEvent(e)
+					beginDrag(reorderTouchPending.pointerId, p, inner)
+					touchDragMode = true
+				}
+				reorderTouchPending = null
+			}
+			e.preventDefault()
+			return
+		}
 		if (pendingTouchGesture && pendingTouchGesture.pointerId === e.pointerId && !dragId) {
 			const dx = e.clientX - pendingTouchGesture.startClientX
 			const dy = e.clientY - pendingTouchGesture.startClientY
@@ -778,6 +835,11 @@ function panelJiggleMotion(id: string) {
 	}
 
 	function onCanvasPointerUp(e: PointerEvent) {
+		reorderMoveSuppressed = false
+		if (reorderTouchPending && reorderTouchPending.pointerId === e.pointerId) {
+			reorderTouchPending = null
+			return
+		}
 		const pending = pendingTouchGesture
 		if (pending && pending.pointerId === e.pointerId) {
 			clearPendingTouchGesture()
@@ -880,12 +942,19 @@ function panelJiggleMotion(id: string) {
 		tryDeltaSpan(selectedId, dCol, dRow)
 	}
 
+	function onReorderDelta(dCol: number, dRow: number) {
+		const p = selectedPanel
+		if (!p) return
+		tryMoveOrSwap(p, p.col + dCol, p.row + dRow)
+	}
+
 	function setReorderMode(next: boolean) {
 		reorderMode = next
 		if (!reorderMode) {
 			stopReorderJiggleLoop()
 			touchDragMode = false
 			touchHoldDragCandidate = false
+			reorderTouchPending = null
 			drawPreview()
 		}
 	}
@@ -1025,6 +1094,7 @@ function panelJiggleMotion(id: string) {
 		const el = e.target
 		if (el instanceof Node && canvasEl?.contains(el)) return
 		if (el instanceof Element && el.closest("[data-mg-selection-ui]")) return
+		if (el instanceof Element && el.closest("[data-mg-reorder-overlay]")) return
 		selectedId = null
 	}
 
@@ -1069,7 +1139,7 @@ function panelJiggleMotion(id: string) {
 	<section class="card bg-base-100 border-base-300 border shadow-md">
 		<div class="card-body gap-6 p-5 md:p-8">
 			<div class="flex flex-wrap items-stretch gap-3">
-				<label class="btn btn-primary btn-lg min-h-14 shrink-0 cursor-pointer px-6 text-lg font-medium">
+				<label class="btn btn-primary btn-lg min-h-14 shrink-0 cursor-pointer px-6 text-lg font-medium max-md:flex-1">
 					{t.addImages}
 					<input
 						bind:this={fileInput}
@@ -1081,7 +1151,7 @@ function panelJiggleMotion(id: string) {
 						on:change={onPickFiles}
 					/>
 				</label>
-				<button type="button" class="btn btn-ghost btn-lg text-error min-h-14 px-6 text-lg" on:click={clearAll}>
+				<button type="button" class="btn btn-outline btn-error btn-lg min-h-14 shrink-0 px-6 text-lg max-md:flex-1" on:click={clearAll}>
 					{t.clearAll}
 				</button>
 			</div>
@@ -1123,6 +1193,21 @@ function panelJiggleMotion(id: string) {
 						labels={t}
 						onRemove={() => removePanel(selectedPanel.id)}
 						onDeltaSpan={onSelectedDeltaSpan}
+					/>
+				{/if}
+				{#if selectedPanel && !dragId && reorderMode}
+					<ComicReorderOverlay
+						{layout}
+						{previewScale}
+						{canvasPadPx}
+						selectedPanel={selectedPanel}
+						canUp={reorderCanUp}
+						canDown={reorderCanDown}
+						canLeft={reorderCanLeft}
+						canRight={reorderCanRight}
+						moveEnabled={!reorderMoveSuppressed}
+						labels={t}
+						onDelta={onReorderDelta}
 					/>
 				{/if}
 			</ComicCanvasStage>
