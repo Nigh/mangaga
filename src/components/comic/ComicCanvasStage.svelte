@@ -3,7 +3,6 @@
 	export let canvasEl: HTMLCanvasElement
 
 	export let displayW = 0
-	export let maxHeight = "min(75vh, 880px)"
 	export let useTouchDragMode = false
 
 	export let onCanvasPointerDown: (e: PointerEvent) => void
@@ -13,8 +12,7 @@
 
 <div
 	bind:this={previewWrapEl}
-	class="bg-base-300/40 border-base-300 flex w-full max-w-full justify-center overflow-auto rounded-2xl border-2 p-2 md:p-3"
-	style="max-height: {maxHeight};"
+	class="bg-base-300/40 border-base-300 flex w-full max-w-full justify-center rounded-2xl border-2 p-2 md:p-3"
 >
 	<div class="relative block max-w-full" style="width: {displayW}px; min-width: min(100%, {displayW}px);">
 		<canvas
