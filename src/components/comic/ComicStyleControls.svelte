@@ -6,7 +6,13 @@
 	export let panelPaddingPct = 0
 	export let panelBorderPct = 0
 	export let panelBorderColor = "#000000"
+	export let panelBorderOpacity = 100
 	export let exportOutputScale = 1
+	export 	let exportFormat: "image/png" | "image/jpeg" | "image/webp" = "image/png"
+	export let exportQuality = 85
+
+	export let hasPanels = false
+	export let estimatedSize: number | null = null
 
 	export let pctStep = 1
 	export let gapPx = 0
@@ -37,11 +43,21 @@
 		panelPadding: "Image Padding",
 		panelBorder: "Panel Border",
 		panelBorderColor: "Panel Border Color",
+		borderOpacity: "Border Opacity",
 		exportPng: "Export PNG",
+		exportFormat: "Format",
+		exportQuality: "Quality",
+		estimatedSize: "Est. size",
 		approxPx: (px: number) => `about ${px} px`,
 		exportScaleLabel: (w: number, h: number) => `Export Scale (about ${w} × ${h} px)`,
 		logicSizeLabel: (w: number, h: number, edge: number) =>
 			`Logical size ${w} × ${h} px; base edge ${edge} px`,
+	}
+
+	function formatBytes(bytes: number): string {
+		if (bytes < 1024) return `${bytes} B`
+		if (bytes < 1024 * 1024) return `${(bytes / 1024).toFixed(1)} KB`
+		return `${(bytes / (1024 * 1024)).toFixed(1)} MB`
 	}
 
 	function makeStepper(
@@ -88,6 +104,15 @@
 		<div class="bg-base-200 rounded p-3">
 			<span class="mb-2 block text-xs font-medium">{labels.panelBorderColor}</span>
 			<input type="color" bind:value={panelBorderColor} class="input input-bordered min-h-10 w-full" />
+			<div class="mt-2 flex items-center gap-1 sm:hidden">
+				<button type="button" class="btn btn-outline btn-sm min-h-10 min-w-8 text-lg" on:click={() => (panelBorderOpacity = Math.max(0, panelBorderOpacity - 5))}>−</button>
+				<span class="flex-1 text-center text-xs">{panelBorderOpacity}%</span>
+				<button type="button" class="btn btn-outline btn-sm min-h-10 min-w-8 text-lg" on:click={() => (panelBorderOpacity = Math.min(100, panelBorderOpacity + 5))}>+</button>
+			</div>
+			<div class="mt-2 hidden items-center gap-2 sm:flex">
+				<input type="range" min="0" max="100" step="1" bind:value={panelBorderOpacity} class="range range-xs range-primary flex-1" />
+				<span class="text-base-content/60 text-xs w-8 text-right">{panelBorderOpacity}%</span>
+			</div>
 		</div>
 	</div>
 
@@ -97,7 +122,12 @@
 				<span class="text-xs font-medium">{labels.canvasPadding}</span>
 				<span class="text-base-content/60 text-xs">{labels.approxPx(canvasPadPx)}</span>
 			</div>
-			<div class="flex items-center gap-1">
+			<div class="flex items-center gap-1 sm:hidden">
+				<button type="button" class="btn btn-outline btn-sm min-h-10 min-w-8 text-lg" on:click={() => padCtrl.step(-1)}>−</button>
+				<span class="flex-1 text-center text-sm">{canvasPaddingPct}%</span>
+				<button type="button" class="btn btn-outline btn-sm min-h-10 min-w-8 text-lg" on:click={() => padCtrl.step(1)}>+</button>
+			</div>
+			<div class="hidden items-center gap-1 sm:flex">
 				<button type="button" class="btn btn-outline btn-sm min-h-10 min-w-10 text-lg" on:click={() => padCtrl.step(-1)}>−</button>
 				<div class="join flex min-h-10 flex-1">
 					<input type="number" min="0" max="30" step={pctStep} class="input input-bordered join-item min-h-10 flex-1 text-center" bind:value={canvasPaddingPct} />
@@ -112,7 +142,12 @@
 				<span class="text-xs font-medium">{labels.cellGap}</span>
 				<span class="text-base-content/60 text-xs">{labels.approxPx(gapPx)}</span>
 			</div>
-			<div class="flex items-center gap-1">
+			<div class="flex items-center gap-1 sm:hidden">
+				<button type="button" class="btn btn-outline btn-sm min-h-10 min-w-8 text-lg" on:click={() => gapCtrl.step(-1)}>−</button>
+				<span class="flex-1 text-center text-sm">{cellGapPct}%</span>
+				<button type="button" class="btn btn-outline btn-sm min-h-10 min-w-8 text-lg" on:click={() => gapCtrl.step(1)}>+</button>
+			</div>
+			<div class="hidden items-center gap-1 sm:flex">
 				<button type="button" class="btn btn-outline btn-sm min-h-10 min-w-10 text-lg" on:click={() => gapCtrl.step(-1)}>−</button>
 				<div class="join flex min-h-10 flex-1">
 					<input type="number" min="0" max="30" step={pctStep} class="input input-bordered join-item min-h-10 flex-1 text-center" bind:value={cellGapPct} />
@@ -127,7 +162,12 @@
 				<span class="text-xs font-medium">{labels.panelPadding}</span>
 				<span class="text-base-content/60 text-xs">{labels.approxPx(panelPadPx)}</span>
 			</div>
-			<div class="flex items-center gap-1">
+			<div class="flex items-center gap-1 sm:hidden">
+				<button type="button" class="btn btn-outline btn-sm min-h-10 min-w-8 text-lg" on:click={() => imgPadCtrl.step(-1)}>−</button>
+				<span class="flex-1 text-center text-sm">{panelPaddingPct}%</span>
+				<button type="button" class="btn btn-outline btn-sm min-h-10 min-w-8 text-lg" on:click={() => imgPadCtrl.step(1)}>+</button>
+			</div>
+			<div class="hidden items-center gap-1 sm:flex">
 				<button type="button" class="btn btn-outline btn-sm min-h-10 min-w-10 text-lg" on:click={() => imgPadCtrl.step(-1)}>−</button>
 				<div class="join flex min-h-10 flex-1">
 					<input type="number" min="0" max="30" step={pctStep} class="input input-bordered join-item min-h-10 flex-1 text-center" bind:value={panelPaddingPct} />
@@ -142,7 +182,12 @@
 				<span class="text-xs font-medium">{labels.panelBorder}</span>
 				<span class="text-base-content/60 text-xs">{labels.approxPx(borderPx)}</span>
 			</div>
-			<div class="flex items-center gap-1">
+			<div class="flex items-center gap-1 sm:hidden">
+				<button type="button" class="btn btn-outline btn-sm min-h-10 min-w-8 text-lg" on:click={() => imgBorderCtrl.step(-1)}>−</button>
+				<span class="flex-1 text-center text-sm">{panelBorderPct}%</span>
+				<button type="button" class="btn btn-outline btn-sm min-h-10 min-w-8 text-lg" on:click={() => imgBorderCtrl.step(1)}>+</button>
+			</div>
+			<div class="hidden items-center gap-1 sm:flex">
 				<button type="button" class="btn btn-outline btn-sm min-h-10 min-w-10 text-lg" on:click={() => imgBorderCtrl.step(-1)}>−</button>
 				<div class="join flex min-h-10 flex-1">
 					<input type="number" min="0" max="30" step={pctStep} class="input input-bordered join-item min-h-10 flex-1 text-center" bind:value={panelBorderPct} />
@@ -167,7 +212,26 @@
 					</button>
 				{/each}
 			</div>
-			<button type="button" class="btn btn-primary btn-sm min-h-10 w-full text-base font-semibold" on:click={onExportPng}>
+			<div class="flex w-full gap-2">
+				{#each [["PNG", "image/png"], ["JPEG", "image/jpeg"], ["WebP", "image/webp"]] as [label, mime]}
+					<button
+						type="button"
+						class="btn btn-sm btn-ghost min-h-10 flex-1 border {exportFormat === mime ? 'btn-active border-primary' : 'border-base-300'}"
+						on:click={() => { exportFormat = mime; exportQuality = mime === "image/png" ? 100 : 85 }}
+					>
+						{label}
+					</button>
+				{/each}
+			</div>
+			<div class="flex w-full items-center gap-2">
+				<span class="text-base-content/60 text-xs whitespace-nowrap">{labels.exportQuality}</span>
+				<input type="range" min="10" max="100" step="5" bind:value={exportQuality} class="range range-xs range-primary flex-1" />
+				<span class="text-base-content/60 text-xs w-8 text-right">{exportQuality}%</span>
+			</div>
+			{#if hasPanels && estimatedSize != null}
+				<p class="text-base-content/60 w-full text-center text-xs">{labels.estimatedSize}: ~{formatBytes(estimatedSize)}</p>
+			{/if}
+			<button type="button" class="btn btn-primary btn-sm min-h-10 w-full text-base font-semibold" disabled={!hasPanels} on:click={onExportPng}>
 				{labels.exportPng}
 			</button>
 		</div>

@@ -7,12 +7,13 @@
 		snapCol,
 		snapRow,
 	} from "../lib/mangaLayout"
-	import { drawPanel, drawPanelInRect } from "../lib/mangaDraw"
+	import { drawPanel, drawPanelInRect, hexToRgba } from "../lib/mangaDraw"
 	import { percentStepForMaxEdge } from "../lib/mangaPctStep"
 	import { MANGAGA_I18N, type MangagaLocale } from "../lib/mangagaI18n"
 	import { locale } from "../lib/stores/locale"
 	import type { MangaPanel as Panel } from "../lib/mangagaTypes"
 	import ComicCanvasStage from "./comic/ComicCanvasStage.svelte"
+	import ComicReorderOverlay from "./comic/ComicReorderOverlay.svelte"
 	import ComicSelectionOverlay from "./comic/ComicSelectionOverlay.svelte"
 	import ComicStyleControls from "./comic/ComicStyleControls.svelte"
 
@@ -27,12 +28,17 @@
 	let panelPaddingPct = 0
 	let panelBorderPct = 0.5
 	let panelBorderColor = "#000000"
+	let panelBorderOpacity = 100
 
 	let cellGapPct = 1
 
 	let exportOutputScale = 1
+	let exportFormat: "image/png" | "image/jpeg" | "image/webp" = "image/png"
+	let exportQuality = 100
 
 	let panels: Panel[] = []
+	let estimatedSize: number | null = null
+	let estimateTimer: ReturnType<typeof setTimeout> | null = null
 	let fileInput: HTMLInputElement
 
 	let canvasEl: HTMLCanvasElement
@@ -55,6 +61,14 @@
 	let touchDragMode = false
 	let touchHoldDragCandidate = false
 	let reorderMode = false
+	let reorderTouchPending: {
+		pointerId: number
+		panelId: string
+		startX: number
+		startY: number
+	} | null = null
+	const reorderTouchMoveThreshold = 8
+	let reorderMoveSuppressed = false
 	let overlayControlsEnabled = true
 	let overlayTouchGuardTimer: ReturnType<typeof setTimeout> | null = null
 	let reorderJiggleRaf = 0
@@ -109,6 +123,10 @@
 	$: selectedCanExpandW = selectedPanel ? canExpandW(selectedPanel) : false
 	$: selectedCanShrinkH = selectedPanel ? canShrinkH(selectedPanel) : false
 	$: selectedCanExpandH = selectedPanel ? canExpandH(selectedPanel) : false
+	$: reorderCanUp = selectedPanel && reorderMode ? canReorderMove(selectedPanel, 0, -1) : false
+	$: reorderCanDown = selectedPanel && reorderMode ? canReorderMove(selectedPanel, 0, 1) : false
+	$: reorderCanLeft = selectedPanel && reorderMode ? canReorderMove(selectedPanel, -1, 0) : false
+	$: reorderCanRight = selectedPanel && reorderMode ? canReorderMove(selectedPanel, 1, 0) : false
 	$: t = MANGAGA_I18N[currentLocale]
 
 	let ro: ResizeObserver
@@ -263,13 +281,22 @@
 				: typeof performance !== "undefined"
 					? performance.now() / 1000
 					: Date.now() / 1000
+		const borderRgba = hexToRgba(panelBorderColor, panelBorderOpacity / 100)
+		const reorderBorderPx = Math.max(borderPx, 2)
+		const reorderBorderRgba = borderPx > 0 ? borderRgba : "rgba(59,130,246,0.8)"
+		const reorderNumMap = new Map<string, number>()
+		if (reorderMode) {
+			for (const p of panels) {
+				reorderNumMap.set(p.id, p.row * gridCols + p.col + 1)
+			}
+		}
+		let dragPanel: (typeof panels)[number] | null = null
 		for (const p of panels) {
 			const img = imgMap.get(p.id) ?? null
 			const r = panelOuterRect(p, layout)
 			if (dragId === p.id) {
-				drawPanel(ctx, p, layout, img, panelPadPx, borderPx, panelBorderColor, 0.2)
-				const rr = { x: dragInnerX, y: dragInnerY, w: r.w, h: r.h }
-				drawPanelInRect(ctx, rr, img, panelPadPx, borderPx, panelBorderColor, 1)
+				dragPanel = p
+				drawPanel(ctx, p, layout, img, panelPadPx, reorderBorderPx, reorderBorderRgba, 0.2)
 			} else if (reorderMode) {
 				const jm = panelJiggleMotion(p.id)
 				const angle = Math.sin(tSec * jm.angleFreq + jm.anglePhase) * 0.0065
@@ -283,14 +310,36 @@
 					{ x: -r.w / 2, y: -r.h / 2, w: r.w, h: r.h },
 					img,
 					panelPadPx,
-					borderPx,
-					panelBorderColor,
+					reorderBorderPx,
+					reorderBorderRgba,
 					1,
 				)
+				const num = reorderNumMap.get(p.id)
+				if (num != null) {
+					const radius = Math.max(12, Math.min(r.w, r.h) * 0.08)
+					ctx.beginPath()
+					ctx.arc(0, 0, radius, 0, Math.PI * 2)
+					ctx.fillStyle = "rgba(255,255,255,0.85)"
+					ctx.fill()
+					ctx.lineWidth = Math.max(2, radius * 0.15)
+					ctx.strokeStyle = "rgba(59,130,246,0.9)"
+					ctx.stroke()
+					ctx.fillStyle = "#1e293b"
+					ctx.textAlign = "center"
+					ctx.textBaseline = "middle"
+					ctx.font = `bold ${Math.round(radius * 1.1)}px sans-serif`
+					ctx.fillText(String(num), 0, 1)
+				}
 				ctx.restore()
 			} else {
-				drawPanel(ctx, p, layout, img, panelPadPx, borderPx, panelBorderColor, 1)
+				drawPanel(ctx, p, layout, img, panelPadPx, borderPx, borderRgba, 1)
 			}
+		}
+		if (dragPanel) {
+			const r = panelOuterRect(dragPanel, layout)
+			const dragImg = imgMap.get(dragPanel.id) ?? null
+			const rr = { x: dragInnerX, y: dragInnerY, w: r.w, h: r.h }
+			drawPanelInRect(ctx, rr, dragImg, panelPadPx, reorderBorderPx, reorderBorderRgba, 1)
 		}
 
 		if (selectedId) {
@@ -349,6 +398,7 @@
 		panelPadPx
 		borderPx
 		panelBorderColor
+		panelBorderOpacity
 		previewScale
 		displayW
 		designOuterW
@@ -362,6 +412,12 @@
 		reorderMode
 		if (reorderMode) ensureReorderJiggleLoop()
 		else stopReorderJiggleLoop()
+	}
+	$: {
+		exportFormat
+		exportQuality
+		exportOutputScale
+		void scheduleEstimate()
 	}
 
 	async function onPickFiles(e: Event) {
@@ -565,6 +621,27 @@
 		return false
 	}
 
+	function canReorderMove(p: Panel, dCol: number, dRow: number): boolean {
+		const nc = p.col + dCol
+		const nr = p.row + dRow
+		if (nc < 0 || nr < 0 || nc + p.colSpan > gridCols) return false
+		if (nr + p.rowSpan > gridRows) return false
+
+		if (canPlace(nc, nr, p.colSpan, p.rowSpan, p.id)) return true
+
+		const blockers = panels.filter(
+			(q) => q.id !== p.id && overlap(nc, nr, p.colSpan, p.rowSpan, q),
+		)
+		if (blockers.length !== 1) return false
+
+		const q = blockers[0]
+		const ign = new Set([p.id, q.id])
+		return (
+			canPlaceIgnoring(nc, nr, p.colSpan, p.rowSpan, ign) &&
+			canPlaceIgnoring(p.col, p.row, q.colSpan, q.rowSpan, ign)
+		)
+	}
+
 	function hitPanelAt(inner: { x: number; y: number }): Panel | null {
 		for (let i = panels.length - 1; i >= 0; i--) {
 			const p = panels[i]
@@ -646,6 +723,7 @@ function panelJiggleMotion(id: string) {
 
 	function onCanvasPointerDown(e: PointerEvent) {
 		if (!canvasEl) return
+		if (e.target !== canvasEl) return
 		const inner = innerFromEvent(e)
 		const p = hitPanelAt(inner)
 
@@ -653,11 +731,17 @@ function panelJiggleMotion(id: string) {
 			clearPendingTouchGesture()
 			if (!p) {
 				selectedId = null
+				reorderTouchPending = null
 				return
 			}
 			selectedId = p.id
-			beginDrag(e.pointerId, p, inner)
-			touchDragMode = true
+			if (reorderMode) reorderMoveSuppressed = true
+			reorderTouchPending = {
+				pointerId: e.pointerId,
+				panelId: p.id,
+				startX: e.clientX,
+				startY: e.clientY,
+			}
 			e.preventDefault()
 			return
 		}
@@ -718,6 +802,21 @@ function panelJiggleMotion(id: string) {
 	}
 
 	function onCanvasPointerMove(e: PointerEvent) {
+		if (reorderTouchPending && reorderTouchPending.pointerId === e.pointerId) {
+			const dx = e.clientX - reorderTouchPending.startX
+			const dy = e.clientY - reorderTouchPending.startY
+			if (Math.hypot(dx, dy) > reorderTouchMoveThreshold) {
+				const p = panels.find((x) => x.id === reorderTouchPending!.panelId)
+				if (p && canvasEl) {
+					const inner = innerFromEvent(e)
+					beginDrag(reorderTouchPending.pointerId, p, inner)
+					touchDragMode = true
+				}
+				reorderTouchPending = null
+			}
+			e.preventDefault()
+			return
+		}
 		if (pendingTouchGesture && pendingTouchGesture.pointerId === e.pointerId && !dragId) {
 			const dx = e.clientX - pendingTouchGesture.startClientX
 			const dy = e.clientY - pendingTouchGesture.startClientY
@@ -736,6 +835,11 @@ function panelJiggleMotion(id: string) {
 	}
 
 	function onCanvasPointerUp(e: PointerEvent) {
+		reorderMoveSuppressed = false
+		if (reorderTouchPending && reorderTouchPending.pointerId === e.pointerId) {
+			reorderTouchPending = null
+			return
+		}
 		const pending = pendingTouchGesture
 		if (pending && pending.pointerId === e.pointerId) {
 			clearPendingTouchGesture()
@@ -838,12 +942,19 @@ function panelJiggleMotion(id: string) {
 		tryDeltaSpan(selectedId, dCol, dRow)
 	}
 
+	function onReorderDelta(dCol: number, dRow: number) {
+		const p = selectedPanel
+		if (!p) return
+		tryMoveOrSwap(p, p.col + dCol, p.row + dRow)
+	}
+
 	function setReorderMode(next: boolean) {
 		reorderMode = next
 		if (!reorderMode) {
 			stopReorderJiggleLoop()
 			touchDragMode = false
 			touchHoldDragCandidate = false
+			reorderTouchPending = null
 			drawPreview()
 		}
 	}
@@ -878,14 +989,13 @@ function panelJiggleMotion(id: string) {
 		const cw = pad * 2 + L.innerW
 		const ch = pad * 2 + L.innerH
 
-		const dpr = Math.min(2, window.devicePixelRatio || 1)
 		const out = exportOutputScale
 		const canvas = document.createElement("canvas")
-		canvas.width = Math.round(cw * out * dpr)
-		canvas.height = Math.round(ch * out * dpr)
+		canvas.width = Math.round(cw * out)
+		canvas.height = Math.round(ch * out)
 		const ctx = canvas.getContext("2d")
 		if (!ctx) return
-		ctx.setTransform(dpr * out, 0, 0, dpr * out, 0, 0)
+		ctx.setTransform(out, 0, 0, out, 0, 0)
 
 		ctx.fillStyle = canvasBgColor
 		ctx.fillRect(0, 0, cw, ch)
@@ -893,22 +1003,98 @@ function panelJiggleMotion(id: string) {
 		ctx.save()
 		ctx.translate(pad, pad)
 
+		const borderRgba = hexToRgba(panelBorderColor, panelBorderOpacity / 100)
 		for (const p of panels) {
 			const img = imgMap.get(p.id) ?? null
-			drawPanel(ctx, p, L, img, pp, pb, panelBorderColor, 1)
+			drawPanel(ctx, p, L, img, pp, pb, borderRgba, 1)
 		}
 		ctx.restore()
 
+		if (exportFormat === "image/png" && exportQuality < 100) {
+			const levels = Math.max(2, Math.round((exportQuality / 100) * 256))
+			const step = 255 / (levels - 1)
+			const imgData = ctx.getImageData(0, 0, canvas.width, canvas.height)
+			const d = imgData.data
+			for (let i = 0; i < d.length; i += 4) {
+				d[i] = Math.round(Math.round(d[i] / step) * step)
+				d[i + 1] = Math.round(Math.round(d[i + 1] / step) * step)
+				d[i + 2] = Math.round(Math.round(d[i + 2] / step) * step)
+			}
+			ctx.putImageData(imgData, 0, 0)
+		}
+
 		const a = document.createElement("a")
-		a.download = `mangaga-${Date.now()}.png`
-		a.href = canvas.toDataURL("image/png")
-		a.click()
+		const ext = exportFormat === "image/png" ? "png" : exportFormat === "image/jpeg" ? "jpg" : "webp"
+		a.download = `mangaga-${Date.now()}.${ext}`
+		canvas.toBlob(
+			(blob) => {
+				if (!blob) return
+				a.href = URL.createObjectURL(blob)
+				a.click()
+				URL.revokeObjectURL(a.href)
+			},
+			exportFormat,
+			exportFormat === "image/png" ? undefined : exportQuality / 100,
+		)
+	}
+
+	function estimateFileSize() {
+		if (!panels.length) { estimatedSize = null; return }
+		const Lm = computeGridTracks(gridCols, gridRows, panels, 0)
+		const gMax = maxCellLongestEdge(Lm)
+		const gap = Math.round((gMax * Math.min(30, Math.max(0, cellGapPct))) / 100)
+		const pad = Math.round((gMax * Math.min(30, Math.max(0, canvasPaddingPct))) / 100)
+		const pb = Math.round((gMax * Math.min(30, Math.max(0, panelBorderPct))) / 100)
+		const pp = Math.round((gMax * Math.min(30, Math.max(0, panelPaddingPct))) / 100)
+		const L = computeGridTracks(gridCols, gridRows, panels, gap)
+		const cw = pad * 2 + L.innerW
+		const ch = pad * 2 + L.innerH
+		const out = exportOutputScale
+		const canvas = document.createElement("canvas")
+		canvas.width = Math.round(cw * out)
+		canvas.height = Math.round(ch * out)
+		const ctx = canvas.getContext("2d")
+		if (!ctx) return
+		ctx.setTransform(out, 0, 0, out, 0, 0)
+		ctx.fillStyle = canvasBgColor
+		ctx.fillRect(0, 0, cw, ch)
+		ctx.save()
+		ctx.translate(pad, pad)
+		const borderRgba = hexToRgba(panelBorderColor, panelBorderOpacity / 100)
+		for (const p of panels) {
+			const img = imgMap.get(p.id) ?? null
+			drawPanel(ctx, p, L, img, pp, pb, borderRgba, 1)
+		}
+		ctx.restore()
+		if (exportFormat === "image/png" && exportQuality < 100) {
+			const levels = Math.max(2, Math.round((exportQuality / 100) * 256))
+			const step = 255 / (levels - 1)
+			const imgData = ctx.getImageData(0, 0, canvas.width, canvas.height)
+			const d = imgData.data
+			for (let i = 0; i < d.length; i += 4) {
+				d[i] = Math.round(Math.round(d[i] / step) * step)
+				d[i + 1] = Math.round(Math.round(d[i + 1] / step) * step)
+				d[i + 2] = Math.round(Math.round(d[i + 2] / step) * step)
+			}
+			ctx.putImageData(imgData, 0, 0)
+		}
+		canvas.toBlob(
+			(blob) => { estimatedSize = blob ? blob.size : null },
+			exportFormat,
+			exportFormat === "image/png" ? undefined : exportQuality / 100,
+		)
+	}
+
+	function scheduleEstimate() {
+		if (estimateTimer) clearTimeout(estimateTimer)
+		estimateTimer = setTimeout(estimateFileSize, 500)
 	}
 
 	function onDocumentPointerDown(e: PointerEvent) {
 		const el = e.target
 		if (el instanceof Node && canvasEl?.contains(el)) return
 		if (el instanceof Element && el.closest("[data-mg-selection-ui]")) return
+		if (el instanceof Element && el.closest("[data-mg-reorder-overlay]")) return
 		selectedId = null
 	}
 
@@ -953,7 +1139,7 @@ function panelJiggleMotion(id: string) {
 	<section class="card bg-base-100 border-base-300 border shadow-md">
 		<div class="card-body gap-6 p-5 md:p-8">
 			<div class="flex flex-wrap items-stretch gap-3">
-				<label class="btn btn-primary btn-lg min-h-14 shrink-0 cursor-pointer px-6 text-lg font-medium">
+				<label class="btn btn-primary btn-lg min-h-14 shrink-0 cursor-pointer px-6 text-lg font-medium max-md:flex-1">
 					{t.addImages}
 					<input
 						bind:this={fileInput}
@@ -965,7 +1151,7 @@ function panelJiggleMotion(id: string) {
 						on:change={onPickFiles}
 					/>
 				</label>
-				<button type="button" class="btn btn-ghost btn-lg text-error min-h-14 px-6 text-lg" on:click={clearAll}>
+				<button type="button" class="btn btn-outline btn-error btn-lg min-h-14 shrink-0 px-6 text-lg max-md:flex-1" on:click={clearAll}>
 					{t.clearAll}
 				</button>
 			</div>
@@ -1009,6 +1195,21 @@ function panelJiggleMotion(id: string) {
 						onDeltaSpan={onSelectedDeltaSpan}
 					/>
 				{/if}
+				{#if selectedPanel && !dragId && reorderMode}
+					<ComicReorderOverlay
+						{layout}
+						{previewScale}
+						{canvasPadPx}
+						selectedPanel={selectedPanel}
+						canUp={reorderCanUp}
+						canDown={reorderCanDown}
+						canLeft={reorderCanLeft}
+						canRight={reorderCanRight}
+						moveEnabled={!reorderMoveSuppressed}
+						labels={t}
+						onDelta={onReorderDelta}
+					/>
+				{/if}
 			</ComicCanvasStage>
 
 			<ComicStyleControls
@@ -1019,7 +1220,10 @@ function panelJiggleMotion(id: string) {
 				bind:panelPaddingPct
 				bind:panelBorderPct
 				bind:panelBorderColor
+				bind:panelBorderOpacity
 				bind:exportOutputScale
+				bind:exportFormat
+				bind:exportQuality
 				{pctStep}
 				{gapPx}
 				{canvasPadPx}
@@ -1031,6 +1235,8 @@ function panelJiggleMotion(id: string) {
 				{designOuterH}
 				{globalMaxEdge}
 				{numStep}
+				hasPanels={panels.length > 0}
+				{estimatedSize}
 				labels={t}
 				onClampGridCols={clampGridCols}
 				onExportPng={exportPng}

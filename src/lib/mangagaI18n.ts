@@ -19,12 +19,20 @@ export type MangagaI18n = {
 	panelPadding: string
 	panelBorder: string
 	panelBorderColor: string
+	borderOpacity: string
 	exportPng: string
+	exportFormat: string
+	exportQuality: string
+	estimatedSize: string
 	delete: string
 	shrinkWidth: string
 	expandWidth: string
 	shrinkHeight: string
 	expandHeight: string
+	moveUp: string
+	moveDown: string
+	moveLeft: string
+	moveRight: string
 	pleaseAddImages: string
 	cannotReadImage: string
 	cannotPlaceInGrid: string
@@ -54,12 +62,20 @@ export const MANGAGA_I18N: Record<MangagaLocale, MangagaI18n> = {
 		panelPadding: "图片内边距",
 		panelBorder: "单格描边",
 		panelBorderColor: "单格描边颜色",
-		exportPng: "导出 PNG",
+		borderOpacity: "描边不透明度",
+		exportPng: "导出",
+		exportFormat: "导出格式",
+		exportQuality: "质量",
+		estimatedSize: "预估大小",
 		delete: "删除",
 		shrinkWidth: "减宽",
 		expandWidth: "加宽",
 		shrinkHeight: "减高",
 		expandHeight: "加高",
+		moveUp: "上移",
+		moveDown: "下移",
+		moveLeft: "左移",
+		moveRight: "右移",
 		pleaseAddImages: "请先添加图片",
 		cannotReadImage: "无法读取图片，请换一张试试",
 		cannotPlaceInGrid: "无法放入网格",
@@ -87,12 +103,20 @@ export const MANGAGA_I18N: Record<MangagaLocale, MangagaI18n> = {
 		panelPadding: "Image Padding",
 		panelBorder: "Panel Border",
 		panelBorderColor: "Panel Border Color",
-		exportPng: "Export PNG",
+		borderOpacity: "Border Opacity",
+		exportPng: "Export",
+		exportFormat: "Format",
+		exportQuality: "Quality",
+		estimatedSize: "Est. size",
 		delete: "Delete",
 		shrinkWidth: "Narrow",
 		expandWidth: "Widen",
 		shrinkHeight: "Shorten",
 		expandHeight: "Heighten",
+		moveUp: "Move up",
+		moveDown: "Move down",
+		moveLeft: "Move left",
+		moveRight: "Move right",
 		pleaseAddImages: "Please add images first",
 		cannotReadImage: "Cannot read this image. Please try another one.",
 		cannotPlaceInGrid: "Cannot place image in grid",
