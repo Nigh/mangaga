@@ -16,6 +16,7 @@
 	import ComicReorderOverlay from "./comic/ComicReorderOverlay.svelte"
 	import ComicSelectionOverlay from "./comic/ComicSelectionOverlay.svelte"
 	import ComicStyleControls from "./comic/ComicStyleControls.svelte"
+	import ScrollFab from "./ScrollFab.svelte"
 
 	let gridCols = 2
 	let gridRows = 2
@@ -1244,3 +1245,5 @@ function panelJiggleMotion(id: string) {
 		</div>
 	</section>
 </div>
+
+<ScrollFab labels={{ scrollToTop: t.scrollToTop, scrollToBottom: t.scrollToBottom }} />

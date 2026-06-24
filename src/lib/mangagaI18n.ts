@@ -36,6 +36,8 @@ export type MangagaI18n = {
 	pleaseAddImages: string
 	cannotReadImage: string
 	cannotPlaceInGrid: string
+	scrollToTop: string
+	scrollToBottom: string
 	approxPx: (px: number) => string
 	exportScaleLabel: (w: number, h: number) => string
 	logicSizeLabel: (w: number, h: number, edge: number) => string
@@ -76,6 +78,8 @@ export const MANGAGA_I18N: Record<MangagaLocale, MangagaI18n> = {
 		moveDown: "下移",
 		moveLeft: "左移",
 		moveRight: "右移",
+		scrollToTop: "回到顶部",
+		scrollToBottom: "去到底部",
 		pleaseAddImages: "请先添加图片",
 		cannotReadImage: "无法读取图片，请换一张试试",
 		cannotPlaceInGrid: "无法放入网格",
@@ -117,6 +121,8 @@ export const MANGAGA_I18N: Record<MangagaLocale, MangagaI18n> = {
 		moveDown: "Move down",
 		moveLeft: "Move left",
 		moveRight: "Move right",
+		scrollToTop: "Scroll to top",
+		scrollToBottom: "Scroll to bottom",
 		pleaseAddImages: "Please add images first",
 		cannotReadImage: "Cannot read this image. Please try another one.",
 		cannotPlaceInGrid: "Cannot place image in grid",
