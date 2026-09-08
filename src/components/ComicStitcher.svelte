@@ -347,7 +347,11 @@
 			const sp = panels.find((x) => x.id === selectedId)
 			if (sp) {
 				const r = panelOuterRect(sp, layout)
-				ctx.strokeStyle = "#e11d48"
+				const primary =
+					typeof document !== "undefined"
+						? getComputedStyle(document.documentElement).getPropertyValue("--color-primary").trim()
+						: ""
+				ctx.strokeStyle = primary || "#e11d48"
 				ctx.lineWidth = 3 / previewScale
 				ctx.strokeRect(r.x - 1, r.y - 1, r.w + 2, r.h + 2)
 			}
@@ -1175,6 +1179,8 @@ function panelJiggleMotion(id: string) {
 				bind:previewWrapEl
 				bind:canvasEl
 				{displayW}
+				empty={!panels.length}
+				emptyMessage={t.emptyState}
 				useTouchDragMode={reorderMode || touchDragMode || dragId != null || touchHoldDragCandidate}
 				{onCanvasPointerDown}
 				{onCanvasPointerMove}

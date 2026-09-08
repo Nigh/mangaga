@@ -11,6 +11,12 @@ export type MangagaI18n = {
 	addImages: string
 	clearAll: string
 	touchHint: string
+	emptyState: string
+	offlineReady: string
+	newVersionTitle: string
+	newVersionHint: string
+	reload: string
+	close: string
 	panelStyleAndExport: string
 	gridCols: string
 	canvasBgColor: string
@@ -54,8 +60,13 @@ export const MANGAGA_I18N: Record<MangagaLocale, MangagaI18n> = {
 		reorderModeOff: "关闭排序模式",
 		addImages: "添加图片",
 		clearAll: "清空",
-		touchHint:
-			"移动端：未选中短按选中；选中后长按可拖动。也可开启“排序模式”直接拖动。",
+		touchHint: "移动端：短按选中，长按已选图拖动；或开启排序模式直接拖动。",
+		emptyState: "还没有图片，点击「添加图片」开始拼图",
+		offlineReady: "应用已可离线使用。",
+		newVersionTitle: "发现新版本！",
+		newVersionHint: "点击重新加载以更新。",
+		reload: "重新加载",
+		close: "关闭",
 		panelStyleAndExport: "样式与导出",
 		gridCols: "列数 (1-4)",
 		canvasBgColor: "全图背景色",
@@ -97,8 +108,13 @@ export const MANGAGA_I18N: Record<MangagaLocale, MangagaI18n> = {
 		reorderModeOff: "Disable Reorder Mode",
 		addImages: "Add Images",
 		clearAll: "Clear",
-		touchHint:
-			"Mobile: tap to select when none selected; long-press selected image to drag. You can also enable Reorder Mode for direct drag.",
+		touchHint: "Mobile: tap to select, long-press selected to drag; or enable Reorder Mode for direct drag.",
+		emptyState: "No images yet. Click “Add Images” to start.",
+		offlineReady: "App is ready for offline use.",
+		newVersionTitle: "New version available!",
+		newVersionHint: "Click reload to update.",
+		reload: "Reload",
+		close: "Close",
 		panelStyleAndExport: "Style & Export",
 		gridCols: "Columns (1-4)",
 		canvasBgColor: "Canvas Background",
