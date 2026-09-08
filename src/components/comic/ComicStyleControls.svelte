@@ -202,7 +202,7 @@
 		<span class="mb-2 block text-xs font-medium">{labels.exportScaleLabel(exportPixelW, exportPixelH)}</span>
 		<div class="flex flex-wrap items-center gap-2">
 			<div class="flex w-full gap-2">
-				{#each [1, 0.75, 0.5, 0.25] as r}
+				{#each [2, 1.5, 1, 0.75, 0.5, 0.25] as r}
 					<button
 						type="button"
 						class="btn btn-sm btn-ghost min-h-10 flex-1 border {exportOutputScale === r ? 'btn-active border-primary' : 'border-base-300'}"

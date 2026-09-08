@@ -1,10 +1,14 @@
 <script lang="ts">
 	import { onMount } from "svelte"
 	import { registerSW } from "virtual:pwa-register"
+	import { locale } from "../lib/stores/locale"
+	import { MANGAGA_I18N } from "../lib/mangagaI18n"
 
 	let needRefresh = false
 	let offlineReady = false
 	let updateServiceWorker: (reloadPage?: boolean) => Promise<void>
+
+	$: t = MANGAGA_I18N[$locale]
 
 	const close = () => {
 		offlineReady = false
@@ -45,7 +49,7 @@
 						d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z"
 					/></svg
 				>
-				<span>App is ready for offline use.</span>
+				<span>{t.offlineReady}</span>
 			</div>
 		{/if}
 
@@ -67,19 +71,19 @@
 					></path></svg
 				>
 				<div class="flex flex-col">
-					<span class="font-bold">New version available!</span>
-					<span class="text-xs">Click reload to update.</span>
+					<span class="font-bold">{t.newVersionTitle}</span>
+					<span class="text-xs">{t.newVersionHint}</span>
 				</div>
 
 				<div class="flex gap-2">
 					<button class="btn btn-sm btn-ghost" on:click={close}>
-						Close
+						{t.close}
 					</button>
 					<button
 						class="btn btn-sm btn-primary border-white text-white hover:bg-primary-focus hover:border-white"
 						on:click={() => updateServiceWorker(true)}
 					>
-						Reload
+						{t.reload}
 					</button>
 				</div>
 			</div>
