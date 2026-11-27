@@ -13,11 +13,17 @@
 	}
 
 	function scrollToTop() {
-		window.scrollTo({ top: 0, behavior: "smooth" })
+		window.scrollTo({
+			top: 0,
+			behavior: window.matchMedia("(prefers-reduced-motion: reduce)").matches ? "instant" : "smooth",
+		})
 	}
 
 	function scrollToBottom() {
-		window.scrollTo({ top: document.documentElement.scrollHeight, behavior: "smooth" })
+		window.scrollTo({
+			top: document.documentElement.scrollHeight,
+			behavior: window.matchMedia("(prefers-reduced-motion: reduce)").matches ? "instant" : "smooth",
+		})
 	}
 
 	onMount(() => {
@@ -36,9 +42,10 @@
 	<button
 		type="button"
 		class="btn btn-circle btn-sm bg-base-100/80 border-base-300/60 text-base-content/70 shadow-lg backdrop-blur-sm {atTop
-			? 'btn-disabled opacity-0'
+			? 'pointer-events-none opacity-0'
 			: ''}"
 		aria-label={labels.scrollToTop}
+		disabled={atTop}
 		on:click={scrollToTop}
 	>
 		<svg xmlns="http://www.w3.org/2000/svg" class="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2">
@@ -48,9 +55,10 @@
 	<button
 		type="button"
 		class="btn btn-circle btn-sm bg-base-100/80 border-base-300/60 text-base-content/70 shadow-lg backdrop-blur-sm {atBottom
-			? 'btn-disabled opacity-0'
+			? 'pointer-events-none opacity-0'
 			: ''}"
 		aria-label={labels.scrollToBottom}
+		disabled={atBottom}
 		on:click={scrollToBottom}
 	>
 		<svg xmlns="http://www.w3.org/2000/svg" class="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2">

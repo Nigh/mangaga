@@ -78,7 +78,7 @@
 	$: imgBorderCtrl = makeStepper(() => panelBorderPct, (v) => (panelBorderPct = v), 0, 30)
 </script>
 
-<div class="divider my-0 text-sm font-medium">{labels.panelStyleAndExport}</div>
+<h2 class="border-base-300 border-b pb-3 text-base font-semibold tracking-tight">{labels.panelStyleAndExport}</h2>
 
 <div class="flex flex-col gap-3">
 	<div class="bg-base-200 rounded p-3">
@@ -88,6 +88,8 @@
 				<button
 					type="button"
 					class="btn btn-sm min-h-10 flex-1 {gridCols === c ? 'btn-primary' : 'btn-outline'}"
+					aria-label={`${c} ${labels.gridCols}`}
+					aria-pressed={gridCols === c}
 					on:click={() => { gridCols = c; onClampGridCols() }}
 				>
 					{c}
@@ -96,136 +98,138 @@
 		</div>
 	</div>
 
-	<div class="grid grid-cols-2 gap-3">
-		<div class="bg-base-200 rounded p-3">
+	<div class="grid grid-cols-[repeat(2,minmax(0,1fr))] gap-3">
+		<div class="bg-base-200 min-w-0 rounded p-3">
 			<span class="mb-2 block text-xs font-medium">{labels.canvasBgColor}</span>
-			<input type="color" bind:value={canvasBgColor} class="input input-bordered min-h-10 w-full" />
+			<input type="color" bind:value={canvasBgColor} aria-label={labels.canvasBgColor} class="input input-bordered min-h-10 min-w-0 w-full cursor-pointer" />
 		</div>
-		<div class="bg-base-200 rounded p-3">
+		<div class="bg-base-200 min-w-0 rounded p-3">
 			<span class="mb-2 block text-xs font-medium">{labels.panelBorderColor}</span>
-			<input type="color" bind:value={panelBorderColor} class="input input-bordered min-h-10 w-full" />
+			<input type="color" bind:value={panelBorderColor} aria-label={labels.panelBorderColor} class="input input-bordered min-h-10 min-w-0 w-full cursor-pointer" />
 			<div class="mt-2 flex items-center gap-1 sm:hidden">
-				<button type="button" class="btn btn-outline btn-sm min-h-10 min-w-8 text-lg" on:click={() => (panelBorderOpacity = Math.max(0, panelBorderOpacity - 5))}>−</button>
+				<button type="button" class="btn btn-outline btn-sm min-h-10 min-w-8 text-lg" aria-label={`${labels.decrease} ${labels.borderOpacity}`} disabled={panelBorderOpacity <= 0} on:click={() => (panelBorderOpacity = Math.max(0, panelBorderOpacity - 5))}>−</button>
 				<span class="flex-1 text-center text-xs">{panelBorderOpacity}%</span>
-				<button type="button" class="btn btn-outline btn-sm min-h-10 min-w-8 text-lg" on:click={() => (panelBorderOpacity = Math.min(100, panelBorderOpacity + 5))}>+</button>
+				<button type="button" class="btn btn-outline btn-sm min-h-10 min-w-8 text-lg" aria-label={`${labels.increase} ${labels.borderOpacity}`} disabled={panelBorderOpacity >= 100} on:click={() => (panelBorderOpacity = Math.min(100, panelBorderOpacity + 5))}>+</button>
 			</div>
 			<div class="mt-2 hidden items-center gap-2 sm:flex">
-				<input type="range" min="0" max="100" step="1" bind:value={panelBorderOpacity} class="range range-xs range-primary flex-1" />
+				<input type="range" min="0" max="100" step="1" bind:value={panelBorderOpacity} aria-label={labels.borderOpacity} class="range range-xs range-primary flex-1" />
 				<span class="text-base-content/60 text-xs w-8 text-right">{panelBorderOpacity}%</span>
 			</div>
 		</div>
 	</div>
 
-	<div class="grid grid-cols-2 gap-3">
-		<div class="bg-base-200 rounded p-3">
+	<div class="grid grid-cols-1 gap-3">
+		<div class="bg-base-200 min-w-0 rounded p-3">
 			<div class="mb-2 flex items-center justify-between">
 				<span class="text-xs font-medium">{labels.canvasPadding}</span>
 				<span class="text-base-content/60 text-xs">{labels.approxPx(canvasPadPx)}</span>
 			</div>
 			<div class="flex items-center gap-1 sm:hidden">
-				<button type="button" class="btn btn-outline btn-sm min-h-10 min-w-8 text-lg" on:click={() => padCtrl.step(-1)}>−</button>
+				<button type="button" class="btn btn-outline btn-sm min-h-10 min-w-8 text-lg" aria-label={`${labels.decrease} ${labels.canvasPadding}`} disabled={canvasPaddingPct <= 0} on:click={() => padCtrl.step(-1)}>−</button>
 				<span class="flex-1 text-center text-sm">{canvasPaddingPct}%</span>
-				<button type="button" class="btn btn-outline btn-sm min-h-10 min-w-8 text-lg" on:click={() => padCtrl.step(1)}>+</button>
+				<button type="button" class="btn btn-outline btn-sm min-h-10 min-w-8 text-lg" aria-label={`${labels.increase} ${labels.canvasPadding}`} disabled={canvasPaddingPct >= 30} on:click={() => padCtrl.step(1)}>+</button>
 			</div>
 			<div class="hidden items-center gap-1 sm:flex">
-				<button type="button" class="btn btn-outline btn-sm min-h-10 min-w-10 text-lg" on:click={() => padCtrl.step(-1)}>−</button>
+				<button type="button" class="btn btn-outline btn-sm min-h-10 min-w-10 text-lg" aria-label={`${labels.decrease} ${labels.canvasPadding}`} disabled={canvasPaddingPct <= 0} on:click={() => padCtrl.step(-1)}>−</button>
 				<div class="join flex min-h-10 flex-1">
-					<input type="number" min="0" max="30" step={pctStep} class="input input-bordered join-item min-h-10 flex-1 text-center" bind:value={canvasPaddingPct} />
+					<input type="number" min="0" max="30" step={pctStep} aria-label={labels.canvasPadding} class="input input-bordered join-item min-h-10 flex-1 text-center" bind:value={canvasPaddingPct} />
 					<span class="btn btn-outline join-item border-base-300 pointer-events-none min-h-10 px-2 text-xs">%</span>
 				</div>
-				<button type="button" class="btn btn-outline btn-sm min-h-10 min-w-10 text-lg" on:click={() => padCtrl.step(1)}>+</button>
+				<button type="button" class="btn btn-outline btn-sm min-h-10 min-w-10 text-lg" aria-label={`${labels.increase} ${labels.canvasPadding}`} disabled={canvasPaddingPct >= 30} on:click={() => padCtrl.step(1)}>+</button>
 			</div>
 		</div>
 
-		<div class="bg-base-200 rounded p-3">
+		<div class="bg-base-200 min-w-0 rounded p-3">
 			<div class="mb-2 flex items-center justify-between">
 				<span class="text-xs font-medium">{labels.cellGap}</span>
 				<span class="text-base-content/60 text-xs">{labels.approxPx(gapPx)}</span>
 			</div>
 			<div class="flex items-center gap-1 sm:hidden">
-				<button type="button" class="btn btn-outline btn-sm min-h-10 min-w-8 text-lg" on:click={() => gapCtrl.step(-1)}>−</button>
+				<button type="button" class="btn btn-outline btn-sm min-h-10 min-w-8 text-lg" aria-label={`${labels.decrease} ${labels.cellGap}`} disabled={cellGapPct <= 0} on:click={() => gapCtrl.step(-1)}>−</button>
 				<span class="flex-1 text-center text-sm">{cellGapPct}%</span>
-				<button type="button" class="btn btn-outline btn-sm min-h-10 min-w-8 text-lg" on:click={() => gapCtrl.step(1)}>+</button>
+				<button type="button" class="btn btn-outline btn-sm min-h-10 min-w-8 text-lg" aria-label={`${labels.increase} ${labels.cellGap}`} disabled={cellGapPct >= 30} on:click={() => gapCtrl.step(1)}>+</button>
 			</div>
 			<div class="hidden items-center gap-1 sm:flex">
-				<button type="button" class="btn btn-outline btn-sm min-h-10 min-w-10 text-lg" on:click={() => gapCtrl.step(-1)}>−</button>
+				<button type="button" class="btn btn-outline btn-sm min-h-10 min-w-10 text-lg" aria-label={`${labels.decrease} ${labels.cellGap}`} disabled={cellGapPct <= 0} on:click={() => gapCtrl.step(-1)}>−</button>
 				<div class="join flex min-h-10 flex-1">
-					<input type="number" min="0" max="30" step={pctStep} class="input input-bordered join-item min-h-10 flex-1 text-center" bind:value={cellGapPct} />
+					<input type="number" min="0" max="30" step={pctStep} aria-label={labels.cellGap} class="input input-bordered join-item min-h-10 flex-1 text-center" bind:value={cellGapPct} />
 					<span class="btn btn-outline join-item border-base-300 pointer-events-none min-h-10 px-2 text-xs">%</span>
 				</div>
-				<button type="button" class="btn btn-outline btn-sm min-h-10 min-w-10 text-lg" on:click={() => gapCtrl.step(1)}>+</button>
+				<button type="button" class="btn btn-outline btn-sm min-h-10 min-w-10 text-lg" aria-label={`${labels.increase} ${labels.cellGap}`} disabled={cellGapPct >= 30} on:click={() => gapCtrl.step(1)}>+</button>
 			</div>
 		</div>
 
-		<div class="bg-base-200 rounded p-3">
+		<div class="bg-base-200 min-w-0 rounded p-3">
 			<div class="mb-2 flex items-center justify-between">
 				<span class="text-xs font-medium">{labels.panelPadding}</span>
 				<span class="text-base-content/60 text-xs">{labels.approxPx(panelPadPx)}</span>
 			</div>
 			<div class="flex items-center gap-1 sm:hidden">
-				<button type="button" class="btn btn-outline btn-sm min-h-10 min-w-8 text-lg" on:click={() => imgPadCtrl.step(-1)}>−</button>
+				<button type="button" class="btn btn-outline btn-sm min-h-10 min-w-8 text-lg" aria-label={`${labels.decrease} ${labels.panelPadding}`} disabled={panelPaddingPct <= 0} on:click={() => imgPadCtrl.step(-1)}>−</button>
 				<span class="flex-1 text-center text-sm">{panelPaddingPct}%</span>
-				<button type="button" class="btn btn-outline btn-sm min-h-10 min-w-8 text-lg" on:click={() => imgPadCtrl.step(1)}>+</button>
+				<button type="button" class="btn btn-outline btn-sm min-h-10 min-w-8 text-lg" aria-label={`${labels.increase} ${labels.panelPadding}`} disabled={panelPaddingPct >= 30} on:click={() => imgPadCtrl.step(1)}>+</button>
 			</div>
 			<div class="hidden items-center gap-1 sm:flex">
-				<button type="button" class="btn btn-outline btn-sm min-h-10 min-w-10 text-lg" on:click={() => imgPadCtrl.step(-1)}>−</button>
+				<button type="button" class="btn btn-outline btn-sm min-h-10 min-w-10 text-lg" aria-label={`${labels.decrease} ${labels.panelPadding}`} disabled={panelPaddingPct <= 0} on:click={() => imgPadCtrl.step(-1)}>−</button>
 				<div class="join flex min-h-10 flex-1">
-					<input type="number" min="0" max="30" step={pctStep} class="input input-bordered join-item min-h-10 flex-1 text-center" bind:value={panelPaddingPct} />
+					<input type="number" min="0" max="30" step={pctStep} aria-label={labels.panelPadding} class="input input-bordered join-item min-h-10 flex-1 text-center" bind:value={panelPaddingPct} />
 					<span class="btn btn-outline join-item border-base-300 pointer-events-none min-h-10 px-2 text-xs">%</span>
 				</div>
-				<button type="button" class="btn btn-outline btn-sm min-h-10 min-w-10 text-lg" on:click={() => imgPadCtrl.step(1)}>+</button>
+				<button type="button" class="btn btn-outline btn-sm min-h-10 min-w-10 text-lg" aria-label={`${labels.increase} ${labels.panelPadding}`} disabled={panelPaddingPct >= 30} on:click={() => imgPadCtrl.step(1)}>+</button>
 			</div>
 		</div>
 
-		<div class="bg-base-200 rounded p-3">
+		<div class="bg-base-200 min-w-0 rounded p-3">
 			<div class="mb-2 flex items-center justify-between">
 				<span class="text-xs font-medium">{labels.panelBorder}</span>
 				<span class="text-base-content/60 text-xs">{labels.approxPx(borderPx)}</span>
 			</div>
 			<div class="flex items-center gap-1 sm:hidden">
-				<button type="button" class="btn btn-outline btn-sm min-h-10 min-w-8 text-lg" on:click={() => imgBorderCtrl.step(-1)}>−</button>
+				<button type="button" class="btn btn-outline btn-sm min-h-10 min-w-8 text-lg" aria-label={`${labels.decrease} ${labels.panelBorder}`} disabled={panelBorderPct <= 0} on:click={() => imgBorderCtrl.step(-1)}>−</button>
 				<span class="flex-1 text-center text-sm">{panelBorderPct}%</span>
-				<button type="button" class="btn btn-outline btn-sm min-h-10 min-w-8 text-lg" on:click={() => imgBorderCtrl.step(1)}>+</button>
+				<button type="button" class="btn btn-outline btn-sm min-h-10 min-w-8 text-lg" aria-label={`${labels.increase} ${labels.panelBorder}`} disabled={panelBorderPct >= 30} on:click={() => imgBorderCtrl.step(1)}>+</button>
 			</div>
 			<div class="hidden items-center gap-1 sm:flex">
-				<button type="button" class="btn btn-outline btn-sm min-h-10 min-w-10 text-lg" on:click={() => imgBorderCtrl.step(-1)}>−</button>
+				<button type="button" class="btn btn-outline btn-sm min-h-10 min-w-10 text-lg" aria-label={`${labels.decrease} ${labels.panelBorder}`} disabled={panelBorderPct <= 0} on:click={() => imgBorderCtrl.step(-1)}>−</button>
 				<div class="join flex min-h-10 flex-1">
-					<input type="number" min="0" max="30" step={pctStep} class="input input-bordered join-item min-h-10 flex-1 text-center" bind:value={panelBorderPct} />
+					<input type="number" min="0" max="30" step={pctStep} aria-label={labels.panelBorder} class="input input-bordered join-item min-h-10 flex-1 text-center" bind:value={panelBorderPct} />
 					<span class="btn btn-outline join-item border-base-300 pointer-events-none min-h-10 px-2 text-xs">%</span>
 				</div>
-				<button type="button" class="btn btn-outline btn-sm min-h-10 min-w-10 text-lg" on:click={() => imgBorderCtrl.step(1)}>+</button>
+				<button type="button" class="btn btn-outline btn-sm min-h-10 min-w-10 text-lg" aria-label={`${labels.increase} ${labels.panelBorder}`} disabled={panelBorderPct >= 30} on:click={() => imgBorderCtrl.step(1)}>+</button>
 			</div>
 		</div>
 	</div>
 
 	<div class="bg-base-200 rounded p-3">
 		<span class="mb-2 block text-xs font-medium">{labels.exportScaleLabel(exportPixelW, exportPixelH)}</span>
-		<div class="flex flex-wrap items-center gap-2">
-			<div class="flex w-full gap-2">
+		<div class="flex min-w-0 flex-wrap items-center gap-2">
+			<div class="grid w-full grid-cols-3 gap-2">
 				{#each [2, 1.5, 1, 0.75, 0.5, 0.25] as r}
 					<button
 						type="button"
-						class="btn btn-sm btn-ghost min-h-10 flex-1 border {exportOutputScale === r ? 'btn-active border-primary' : 'border-base-300'}"
+						class="btn btn-sm btn-ghost min-h-10 min-w-0 border px-2 {exportOutputScale === r ? 'btn-active border-primary' : 'border-base-300'}"
+						aria-pressed={exportOutputScale === r}
 						on:click={() => (exportOutputScale = r)}
 					>
 						{Math.round(r * 100)}%
 					</button>
 				{/each}
 			</div>
-			<div class="flex w-full gap-2">
+			<div class="grid w-full grid-cols-3 gap-2">
 				{#each [["PNG", "image/png"], ["JPEG", "image/jpeg"], ["WebP", "image/webp"]] as [label, mime]}
 					<button
 						type="button"
-						class="btn btn-sm btn-ghost min-h-10 flex-1 border {exportFormat === mime ? 'btn-active border-primary' : 'border-base-300'}"
+						class="btn btn-sm btn-ghost min-h-10 min-w-0 border px-2 {exportFormat === mime ? 'btn-active border-primary' : 'border-base-300'}"
+						aria-pressed={exportFormat === mime}
 						on:click={() => { exportFormat = mime; exportQuality = mime === "image/png" ? 100 : 85 }}
 					>
 						{label}
 					</button>
 				{/each}
 			</div>
-			<div class="flex w-full items-center gap-2">
+			<div class="flex w-full min-w-0 items-center gap-2">
 				<span class="text-base-content/60 text-xs whitespace-nowrap">{labels.exportQuality}</span>
-				<input type="range" min="10" max="100" step="5" bind:value={exportQuality} class="range range-xs range-primary flex-1" />
+				<input type="range" min="10" max="100" step="5" bind:value={exportQuality} aria-label={labels.exportQuality} class="range range-xs range-primary min-w-0 flex-1" />
 				<span class="text-base-content/60 text-xs w-8 text-right">{exportQuality}%</span>
 			</div>
 			{#if hasPanels && estimatedSize != null}

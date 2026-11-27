@@ -14,7 +14,8 @@
 
 ### 关键模块速查
 
-- **`ComicStitcher.svelte`** — 全部核心交互逻辑（拖放/选中/导出/重排）。修改 UI 逻辑的第一入口。
+- **`ComicStitcher.svelte`** — 图片选择与导入、选中、导出和重排逻辑。修改这些 UI 交互的第一入口。
+- **`src/components/comic/ComicCanvasStage.svelte`** — 拼图预览画布与文件拖放目标；桌面端支持拖入图片，移动端继续使用系统图片选择器。
 - **`src/lib/mangaLayout.ts`** — 网格布局引擎（不均宽列/不均高行）。修改几何计算的核心。
 - **`src/lib/mangaDraw.ts`** — Canvas 绘制工具。修改渲染表现的核心。
 - **`src/lib/mangagaI18n.ts`** — 国际化字典。新增语言或文案的唯一位置。
