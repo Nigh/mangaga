@@ -382,7 +382,13 @@
 	}
 
 	function ensureReorderJiggleLoop() {
-		if (!reorderMode || reorderJiggleRaf || typeof window === "undefined") return
+		if (
+			!reorderMode ||
+			reorderJiggleRaf ||
+			typeof window === "undefined" ||
+			window.matchMedia("(prefers-reduced-motion: reduce)").matches
+		)
+			return
 		reorderJiggleRaf = window.requestAnimationFrame(runReorderJiggleLoop)
 	}
 
@@ -425,12 +431,13 @@
 		void scheduleEstimate()
 	}
 
-	async function onPickFiles(e: Event) {
-		const input = e.target as HTMLInputElement
-		const list = input.files ? Array.from(input.files) : []
-		input.value = ""
+	async function onFilesSelected(list: File[]) {
+		let skippedUnsupported = false
 		for (const file of list) {
-			if (!isImageFile(file)) continue
+			if (!isImageFile(file)) {
+				skippedUnsupported = true
+				continue
+			}
 			const src = URL.createObjectURL(file)
 			let nw = 1
 			let nh = 1
@@ -467,6 +474,14 @@
 			selectedId = id
 			syncRowsFromPanels()
 		}
+		if (skippedUnsupported) showMsg(t.unsupportedFiles)
+	}
+
+	function onPickFiles(e: Event) {
+		const input = e.target as HTMLInputElement
+		const list = input.files ? Array.from(input.files) : []
+		input.value = ""
+		void onFilesSelected(list)
 	}
 
 	function removePanel(id: string) {
@@ -1136,15 +1151,20 @@ function panelJiggleMotion(id: string) {
 	})
 </script>
 
-<div class="text-base-content mx-auto flex w-full max-w-3xl flex-col gap-6 px-4 pb-24 pt-4 md:max-w-4xl md:gap-8 md:px-6">
+<div class="editor-shell text-base-content mx-auto grid w-full max-w-[1440px] grid-cols-1 items-start gap-4 px-4 pb-24 pt-4 md:gap-6 md:px-6 xl:grid-cols-[minmax(0,1fr)_minmax(340px,400px)]">
 	{#if message}
-		<div class="alert alert-warning text-base shadow-md">{message}</div>
+		<div class="alert alert-warning col-span-full text-sm shadow-sm" role="status" aria-live="polite">{message}</div>
 	{/if}
 
-	<section class="card bg-base-100 border-base-300 border shadow-md">
-		<div class="card-body gap-6 p-5 md:p-8">
-			<div class="flex flex-wrap items-stretch gap-3">
-				<label class="btn btn-primary btn-lg min-h-14 shrink-0 cursor-pointer px-6 text-lg font-medium max-md:flex-1">
+	<section class="editor-stage card bg-base-100 border-base-300 min-w-0 border shadow-sm" aria-labelledby="editor-heading">
+		<div class="card-body gap-5 p-4 sm:p-5 md:gap-6 md:p-6">
+			<header class="flex flex-wrap items-end justify-between gap-3">
+				<div class="min-w-0">
+					<h2 id="editor-heading" class="text-lg font-semibold tracking-tight md:text-xl">{t.subtitle}</h2>
+					<p class="text-base-content/70 mt-1 text-sm leading-relaxed">{t.touchHint}</p>
+				</div>
+				<div class="flex w-full flex-wrap items-stretch gap-2 sm:w-auto sm:shrink-0 sm:gap-3">
+				<label class="btn btn-primary min-h-11 flex-1 cursor-pointer px-4 font-semibold sm:flex-none sm:px-5">
 					{t.addImages}
 					<input
 						bind:this={fileInput}
@@ -1156,31 +1176,36 @@ function panelJiggleMotion(id: string) {
 						on:change={onPickFiles}
 					/>
 				</label>
-				<button type="button" class="btn btn-outline btn-error btn-lg min-h-14 shrink-0 px-6 text-lg max-md:flex-1" on:click={clearAll}>
+				<button type="button" class="btn btn-outline btn-error min-h-11 flex-1 px-4 sm:flex-none sm:px-5" disabled={!panels.length} on:click={clearAll}>
 					{t.clearAll}
 				</button>
-			</div>
+				</div>
+			</header>
 
-			<p class="text-base-content/70 text-sm leading-relaxed md:text-base">{t.touchHint}</p>
-			<div class="bg-base-200/70 border-base-300 flex items-center justify-between rounded-xl border px-3 py-2 md:px-4">
-				<div class="text-sm font-medium md:text-base">{t.reorderModeLabel}</div>
+			<label class="bg-base-200/60 border-base-300 flex min-h-12 cursor-pointer items-center justify-between gap-3 rounded-xl border px-3 py-2.5 transition-colors hover:bg-base-200 sm:px-4">
+				<span class="text-sm font-medium">{t.reorderModeLabel}</span>
 				<div class="flex items-center gap-2">
-					<span class="text-xs font-semibold uppercase">{reorderMode ? t.reorderModeHintOn : t.reorderModeHintOff}</span>
+					<span class="text-base-content/70 text-xs font-semibold uppercase tracking-wide">{reorderMode ? t.reorderModeHintOn : t.reorderModeHintOff}</span>
 					<input
 						type="checkbox"
-						class="toggle toggle-primary toggle-lg"
+						class="toggle toggle-primary"
 						bind:checked={reorderMode}
 						on:change={onReorderModeChange}
+						disabled={!panels.length}
 					/>
 				</div>
-			</div>
+			</label>
 
+			<div class="canvas-well bg-base-200/30 rounded-2xl p-2 sm:p-3 md:p-4">
 			<ComicCanvasStage
 				bind:previewWrapEl
 				bind:canvasEl
 				{displayW}
 				empty={!panels.length}
 				emptyMessage={t.emptyState}
+				dropHint={t.dropHint}
+				dropActiveHint={t.dropActiveHint}
+				onDropFiles={onFilesSelected}
 				useTouchDragMode={reorderMode || touchDragMode || dragId != null || touchHoldDragCandidate}
 				{onCanvasPointerDown}
 				{onCanvasPointerMove}
@@ -1218,7 +1243,12 @@ function panelJiggleMotion(id: string) {
 					/>
 				{/if}
 			</ComicCanvasStage>
+			</div>
+		</div>
+	</section>
 
+	<aside class="editor-settings card bg-base-100 border-base-300 min-w-0 border shadow-sm" aria-label={t.panelStyleAndExport}>
+		<div class="card-body gap-5 p-4 sm:p-5 md:p-6">
 			<ComicStyleControls
 				bind:gridCols
 				bind:canvasBgColor
@@ -1249,7 +1279,7 @@ function panelJiggleMotion(id: string) {
 				onExportPng={exportPng}
 			/>
 		</div>
-	</section>
+	</aside>
 </div>
 
 <ScrollFab labels={{ scrollToTop: t.scrollToTop, scrollToBottom: t.scrollToBottom }} />

@@ -78,3 +78,46 @@
 	--text-5xl: 3.75rem;
 	--text-6xl: 4.5rem;
 }
+
+html {
+	scroll-behavior: smooth;
+}
+
+::selection {
+	background: color-mix(in oklab, var(--color-primary) 22%, transparent);
+	color: var(--color-base-content);
+}
+
+:where(button, a, input, select, textarea, [tabindex]):focus-visible {
+	outline: 3px solid var(--color-primary);
+	outline-offset: 3px;
+}
+
+button:disabled,
+input:disabled {
+	cursor: not-allowed;
+}
+
+.editor-stage,
+.editor-settings {
+	border-radius: 1rem;
+}
+
+.canvas-well {
+	min-width: 0;
+}
+
+@media (prefers-reduced-motion: reduce) {
+	html {
+		scroll-behavior: auto;
+	}
+
+	*,
+	*::before,
+	*::after {
+		animation-duration: 0.01ms !important;
+		animation-iteration-count: 1 !important;
+		transition-duration: 0.01ms !important;
+		scroll-behavior: auto !important;
+	}
+}

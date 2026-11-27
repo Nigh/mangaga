@@ -9,6 +9,9 @@ export type MangagaI18n = {
 	reorderModeOn: string
 	reorderModeOff: string
 	addImages: string
+	dropHint: string
+	dropActiveHint: string
+	unsupportedFiles: string
 	clearAll: string
 	touchHint: string
 	emptyState: string
@@ -26,6 +29,8 @@ export type MangagaI18n = {
 	panelBorder: string
 	panelBorderColor: string
 	borderOpacity: string
+	decrease: string
+	increase: string
 	exportPng: string
 	exportFormat: string
 	exportQuality: string
@@ -59,6 +64,9 @@ export const MANGAGA_I18N: Record<MangagaLocale, MangagaI18n> = {
 		reorderModeOn: "开启排序模式",
 		reorderModeOff: "关闭排序模式",
 		addImages: "添加图片",
+		dropHint: "也可以把图片拖到预览区",
+		dropActiveHint: "松开放入图片",
+		unsupportedFiles: "已跳过不支持的文件，请选择图片。",
 		clearAll: "清空",
 		touchHint: "移动端：短按选中，长按已选图拖动；或开启排序模式直接拖动。",
 		emptyState: "还没有图片，点击「添加图片」开始拼图",
@@ -76,6 +84,8 @@ export const MANGAGA_I18N: Record<MangagaLocale, MangagaI18n> = {
 		panelBorder: "单格描边",
 		panelBorderColor: "单格描边颜色",
 		borderOpacity: "描边不透明度",
+		decrease: "减少",
+		increase: "增加",
 		exportPng: "导出",
 		exportFormat: "导出格式",
 		exportQuality: "质量",
@@ -107,6 +117,9 @@ export const MANGAGA_I18N: Record<MangagaLocale, MangagaI18n> = {
 		reorderModeOn: "Enable Reorder Mode",
 		reorderModeOff: "Disable Reorder Mode",
 		addImages: "Add Images",
+		dropHint: "Or drag image files onto the preview.",
+		dropActiveHint: "Drop to add images",
+		unsupportedFiles: "Unsupported files were skipped. Choose image files.",
 		clearAll: "Clear",
 		touchHint: "Mobile: tap to select, long-press selected to drag; or enable Reorder Mode for direct drag.",
 		emptyState: "No images yet. Click “Add Images” to start.",
@@ -124,6 +137,8 @@ export const MANGAGA_I18N: Record<MangagaLocale, MangagaI18n> = {
 		panelBorder: "Panel Border",
 		panelBorderColor: "Panel Border Color",
 		borderOpacity: "Border Opacity",
+		decrease: "Decrease",
+		increase: "Increase",
 		exportPng: "Export",
 		exportFormat: "Format",
 		exportQuality: "Quality",
